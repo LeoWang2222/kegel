@@ -1,4 +1,4 @@
-var CACHE = "kegel-v1";
+var CACHE = "kegel-v2";
 var ASSETS = [
   "./",
   "./index.html",

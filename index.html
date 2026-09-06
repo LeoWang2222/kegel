@@ -123,6 +123,25 @@ h1.appname{text-align:center;font-size:19px;font-weight:600;margin:6px 0 14px;}
   transition:opacity .25s, transform .25s;z-index:50;white-space:nowrap;}
 .ex-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
+/* ===== 教程页 ===== */
+#pg-guide{text-align:left;}
+.gd-card{background:#fff;border-radius:16px;padding:16px;margin-top:12px;box-shadow:0 4px 18px rgba(23,58,48,.05);}
+.gd-card h3{font-size:15px;color:var(--green);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.gd-card p{font-size:13px;color:var(--text);line-height:1.7;}
+.gd-card p + p{margin-top:6px;}
+.gd-card ul{list-style:none;margin-top:2px;}
+.gd-card li{font-size:13px;color:var(--text);line-height:1.7;padding-left:16px;position:relative;margin-top:5px;}
+.gd-card li::before{content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;border-radius:50%;background:var(--green2);}
+.gd-card li b{color:var(--green);}
+.gd-card .warn{background:#fdf6e8;border-radius:10px;padding:9px 12px;font-size:12px;color:#9a6b1e;line-height:1.6;margin-top:10px;}
+.gd-card .step{display:flex;gap:10px;margin-top:8px;}
+.gd-card .step i{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--green-soft);color:var(--green2);
+  font-style:normal;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.gd-card .step div{font-size:13px;color:var(--text);line-height:1.7;}
+.gd-week{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:9px 12px;background:#f6faf7;border-radius:10px;margin-top:7px;}
+.gd-week b{color:var(--green);white-space:nowrap;margin-right:8px;}
+.gd-week span{color:var(--text);text-align:right;line-height:1.5;}
+
 /* ===== 庆祝动效 ===== */
 .celebrate{position:fixed;inset:0;background:rgba(237,245,240,.92);z-index:60;display:none;
   align-items:center;justify-content:center;flex-direction:column;backdrop-filter:blur(3px);}
@@ -228,6 +247,15 @@ h1.appname{text-align:center;font-size:19px;font-weight:600;margin:6px 0 14px;}
     </div>
   </div>
 
+  <div class="sec-title">新手指南</div>
+  <div class="card" style="padding:4px 18px;">
+    <div class="task-row" id="row-guide">
+      <div class="task-ico" style="background:#fdf6e8;">📖</div>
+      <div class="task-info"><b>凯格尔教程与好处</b><div>零基础也能看懂 · 3 分钟上手</div></div>
+      <span class="pill">查看 ›</span>
+    </div>
+  </div>
+
   <div class="sec-title">下一条提醒</div>
   <div class="card remind-card">
     <div class="task-ico" style="background:#fdf6e8;">🔔</div>
@@ -291,6 +319,83 @@ h1.appname{text-align:center;font-size:19px;font-weight:600;margin:6px 0 14px;}
   <div class="c-peach">🍑</div>
   <div class="c-txt" id="c-txt">完成 1 组！</div>
   <div class="c-sub" id="c-sub">做得很棒，继续保持～</div>
+</div>
+
+<!-- ================= 教程页 ================= -->
+<div class="page" id="pg-guide">
+  <div class="ex-head">
+    <button class="back" id="gd-back">‹</button>
+    <div class="t">凯格尔教程与好处</div>
+  </div>
+
+  <div class="gd-card">
+    <h3>🍑 什么是凯格尔运动？</h3>
+    <p>凯格尔运动（Kegel）练的是「盆底肌」，俗称 <b>PC 肌</b>——骨盆底部的一圈肌肉，托着膀胱和直肠，也环绕着阴茎根部。</p>
+    <p>它就像男性的「隐形势能肌」：强壮了，对勃起硬度、持久力和射精控制都有直接帮助，而且随时随地都能练，别人完全看不出来。</p>
+  </div>
+
+  <div class="gd-card">
+    <h3>🎯 第一步：找到你的 PC 肌（最关键）</h3>
+    <ul>
+      <li><b>小便中断法：</b>小便时试着中途憋住，那一刻发力的肌肉就是 PC 肌。</li>
+      <li><b>憋屁法：</b>想象努力憋住屁，肛门周围「向内向上收紧上提」的感觉。</li>
+      <li><b>勃起测试：</b>勃起时收紧 PC 肌，阴茎会轻轻向上抬、跳一下。</li>
+    </ul>
+    <p style="margin-top:8px;">✅ <b>判断对不对：</b>收紧时肚子、大腿、臀部都保持松软，只有「裆部深处」在用力，就对了。</p>
+    <div class="warn">⚠️ 小便中断法只用于「找感觉」，不要养成排尿时练习的习惯，长期这样会影响正常排尿。</div>
+  </div>
+
+  <div class="gd-card">
+    <h3>💪 第二步：正确练法（配合本 APP）</h3>
+    <div class="step"><i>1</i><div><b>姿势：</b>躺着、坐着、站着都行。新手建议仰卧、膝盖弯曲，最容易找到发力感。</div></div>
+    <div class="step"><i>2</i><div><b>收紧：</b>像憋尿、憋屁一样向内向上收紧。在本 APP 里 = <b>按住蜜桃</b>。</div></div>
+    <div class="step"><i>3</i><div><b>保持：</b>保持收紧 5 秒（可在「我的」里调 2~10 秒）。全程自然呼吸，<b>千万别憋气</b>。</div></div>
+    <div class="step"><i>4</i><div><b>放松：</b>完全松开 4 秒，让肌肉充分休息——放松和收紧同样重要。</div></div>
+    <div class="step"><i>5</i><div><b>一组 10 次，每天 3 组起步。</b>早、中、晚分开练，比一口气练完效果更好。</div></div>
+  </div>
+
+  <div class="gd-card">
+    <h3>📈 新手 4 周进阶计划</h3>
+    <div class="gd-week"><b>第 1 周</b><span>收紧 3 秒 × 10 次 · 每天 2 组</span></div>
+    <div class="gd-week"><b>第 2 周</b><span>收紧 5 秒 × 10 次 · 每天 3 组</span></div>
+    <div class="gd-week"><b>第 3 周</b><span>收紧 7 秒 × 10 次 · 每天 3 组</span></div>
+    <div class="gd-week"><b>第 4 周起</b><span>收紧 10 秒 × 10 次 · 每天 3 组</span></div>
+    <p style="margin-top:10px;">第 4 周后可以加练「快收快放」：快速收紧立刻放松，连续 10 次，练爆发力，对实战控制更有帮助。</p>
+  </div>
+
+  <div class="gd-card">
+    <h3>🚫 常见错误（90% 新手都踩过）</h3>
+    <ul>
+      <li><b>憋气练</b> → 保持自然呼吸，憋气会让腹压顶错方向。</li>
+      <li><b>用肚子/屁股/大腿代偿</b> → 手放在肚子上检查，全程应该是松软的。</li>
+      <li><b>贪多猛练</b> → 肌肉也会疲劳，每天 3~4 组足够，过量反而让控制力下降。</li>
+      <li><b>排尿时练</b> → 只用于找感觉，别当常规训练。</li>
+      <li><b>三天打鱼</b> → 凯格尔拼的是积累，中断一周就明显退步。</li>
+    </ul>
+  </div>
+
+  <div class="gd-card">
+    <h3>🏆 坚持练有什么好处</h3>
+    <ul>
+      <li><b>更硬：</b>PC 肌参与勃起时「锁住」血液，充血更足、硬度更稳。</li>
+      <li><b>更久：</b>增强对射精反射的控制，关键时刻「刹得住车」。</li>
+      <li><b>更有力：</b>射精力度和高潮快感都会增强。</li>
+      <li><b>更健康：</b>改善尿频、尿后滴沥，促进前列腺血液循环。</li>
+      <li><b>久坐福音：</b>缓解盆底长期受压，对开车、久坐办公的人特别友好。</li>
+    </ul>
+    <div class="warn">⏳ 一般坚持 4~8 周开始有明显感觉，贵在每天不断——本 APP 的打卡功能就是为这个设计的。</div>
+  </div>
+
+  <div class="gd-card">
+    <h3>📌 注意事项</h3>
+    <ul>
+      <li>练完轻微酸胀属正常；如果出现疼痛，休息两天再练。</li>
+      <li>任何时候都能练：等红灯、开会、躺床上刷手机……没人看得出来。</li>
+      <li>如果存在严重的勃起或排尿问题，请先看医生——训练不能替代治疗。</li>
+    </ul>
+  </div>
+
+  <div class="ver">凯格尔运动小助手 · 教程内容仅供参考</div>
 </div>
 
 <!-- ================= 打卡页 ================= -->
@@ -492,6 +597,8 @@ render();
 $("row-kegel").addEventListener("click",function(){startExercise();});
 $("btn-go-ex").addEventListener("click",function(ev){ev.stopPropagation();startExercise();});
 $("row-plan").addEventListener("click",function(){show("pg-me");});
+$("row-guide").addEventListener("click",function(){show("pg-guide");});
+$("gd-back").addEventListener("click",function(){show("pg-home");});
 
 /* 我的页设置 */
 $("kg-minus").addEventListener("click",function(){if(S.kegelTarget>1){S.kegelTarget--;save();render();haptic();}});
