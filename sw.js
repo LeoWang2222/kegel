@@ -1,4 +1,4 @@
-var CACHE = "kegel-v2";
+var CACHE = "kegel-v3";
 var ASSETS = [
   "./",
   "./index.html",
@@ -26,6 +26,22 @@ self.addEventListener("activate", function (e) {
 
 self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET") return;
+  // 页面导航：网络优先，保证主屏幕 APP 一打开就是最新版；断网时用缓存兜底
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request).then(function (resp) {
+        var copy = resp.clone();
+        caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+        return resp;
+      }).catch(function () {
+        return caches.match(e.request, { ignoreSearch: true }).then(function (hit) {
+          return hit || caches.match("./index.html");
+        });
+      })
+    );
+    return;
+  }
+  // 静态资源：缓存优先，联网时顺手更新缓存
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(function (hit) {
       return hit || fetch(e.request).then(function (resp) {
