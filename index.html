@@ -14,7 +14,19 @@
 <script>
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   window.addEventListener("load", function () {
-    navigator.serviceWorker.register("sw.js").catch(function () {});
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) {
+      reg.update();
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) reg.update();
+      });
+    }).catch(function () {});
+  });
+  // 新版本 SW 接管后自动刷新一次，让主屏幕 APP 无需重装即可更新
+  var swReloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", function () {
+    if (swReloaded) return;
+    swReloaded = true;
+    location.reload();
   });
 }
 </script>
@@ -451,7 +463,7 @@ h1.appname{text-align:center;font-size:19px;font-weight:600;margin:6px 0 14px;}
     </div>
   </div>
   <button class="ghost-btn" id="btn-reset">清空全部数据，重新开始</button>
-  <div class="ver">凯格尔运动小助手 · 本地存储，数据不上传</div>
+  <div class="ver">凯格尔运动小助手 v3 · 本地存储，数据不上传</div>
 </div>
 
 <!-- ================= 底部标签 ================= -->

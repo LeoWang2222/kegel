@@ -24,7 +24,7 @@
 | 文件 | 作用 |
 |---|---|
 | `index.html` | **整个 APP 本体**：HTML+CSS+JS 全部内嵌，单文件 |
-| `sw.js` | Service Worker 离线缓存。**每次改代码必须升级里面的 `CACHE` 版本号**（当前 `kegel-v1`），否则手机不更新 |
+| `sw.js` | Service Worker 离线缓存。**每次改代码必须升级里面的 `CACHE` 版本号**（当前 `kegel-v3`），否则手机不更新。v3 起：页面导航走网络优先（联网即最新，断网用缓存兜底），静态资源缓存优先 |
 | `manifest.webmanifest` | PWA 配置（standalone、图标、主题色 #edf5f0） |
 | `apple-touch-icon.png` (180×180) | iOS 主屏幕图标（PIL + Segoe UI Emoji 生成的 💪 图） |
 | `icon-512.png` (512×512) | manifest 图标 |
@@ -41,6 +41,7 @@ v2 新增：首页「新手指南」入口 → 教程页 `pg-guide`（覆盖层�
 2. **iOS 无 Vibration API**：震动用 `<input type="checkbox" switch>` + label.click() 的 iOS 17.4+ 触觉 hack（`haptic()`），WebAudio `beep()` 兜底。
 3. **iOS 网页无法后台推送**：提醒只是页面内倒计时，别承诺系统级通知。
 4. **iOS 主屏幕图标必须真实 PNG**（不支持 SVG/data URI）。重绘图标：用 PIL + `C:\Windows\Fonts\seguiemj.ttf`，`draw.text(..., embedded_color=True)`。
+5. **自动更新机制（v3 新增）**：index.html 注册 SW 时带 `updateViaCache:"none"`，回到前台时 `reg.update()`，并监听 `controllerchange` 自动 `location.reload()`（有 `swReloaded` 防循环）。效果：推送新版后，用户打开/切回 APP 一两次即自动变最新，无需删图标重装。改这套逻辑时注意保持防刷新循环标记。
 5. **进度环**：SVG circle r=120，周长 754，改半径要同步改。
 6. **按压交互**：Pointer Events，`touch-action:none` + 阻止 contextmenu。
 7. **部署流程**：
