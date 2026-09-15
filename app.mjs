@@ -1,0 +1,279 @@
+import {KEY,dateKey,normalize,completeGroup,streak,planDay,Session} from './core.mjs';
+const $ = id => document.getElementById(id);
+const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+const setText = (id,value) => {const el=$(id),s=String(value);if(el.textContent!==s)el.textContent=s;};
+let storageBlocked=false, S;
+function storageWarning(message){$('storage-warning').hidden=false;setText('storage-warning',message);}
+try {
+  const raw=localStorage.getItem(KEY);
+  S=normalize(raw?JSON.parse(raw):{});
+  if(raw && JSON.parse(raw)?.version!==5 && !localStorage.getItem(KEY+'_pre_v5')) localStorage.setItem(KEY+'_pre_v5',raw);
+} catch(error) {
+  storageBlocked=true;S=normalize({});
+  storageWarning('暂时无法读取原有记录，原始数据未覆盖。请检查浏览器存储设置；当前可体验练习。');
+}
+function save(){
+  if(storageBlocked)return;
+  try{localStorage.setItem(KEY,JSON.stringify(S));$('storage-warning').hidden=true;}
+  catch{storageWarning('记录暂未保存：浏览器存储不可用或空间不足。关闭页面后本次进度可能丢失。');}
+}
+save();
+let currentPage='home',guideReturn='home',session=null,frameId=0,pointerId=null,keyHeld=null;
+let calendarDate=new Date();calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth(),1);
+let lastPhase='',lastDone=-1,toastTimer,audioContext,wakeLock=null,wakePending=false;
+let swRegistration=null,updatePending=false,hadController=!!navigator.serviceWorker?.controller,reloading=false;
+const knownPages=['home','records','settings','guide','exercise','complete'];
+
+function toast(message){setText('toast',message);$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2500);}
+function rollover(){if(S.day!==dateKey()){S=normalize(S);save();}}
+function markTarget(){if(S.kegelGroups>=S.kegelTarget)S.checkins[S.day]=true;}
+function displayDate(key){const [y,m,d]=key.split('-').map(Number);return new Date(y,m-1,d,12);}
+function shortDate(key){const d=displayDate(key);return `${d.getMonth()+1}月${d.getDate()}日`;}
+function render(){
+  rollover();
+  const now=new Date(),percent=Math.min(100,Math.round(S.kegelGroups/S.kegelTarget*100));
+  setText('today-date',`${now.getMonth()+1}月${now.getDate()}日 · 星期${'日一二三四五六'[now.getDay()]}`);
+  setText('home-done',S.kegelGroups);setText('home-target',S.kegelTarget);setText('daily-percent',`${percent}%`);
+  $('daily-ring').style.strokeDashoffset=100-percent;
+  setText('home-status',percent>=100?'今日目标已完成':'慢慢来，也很好');
+  const seconds=(S.holdSec+S.restSec)*10,min=Math.floor(seconds/60),sec=seconds%60;
+  setText('duration',`约 ${min?min+' 分':''}${sec?' '+sec+' 秒':''}`.trim());
+  setText('hold-meta',`收紧 ${S.holdSec} 秒`);
+  // Keep the icon in the start button stable when its label changes.
+  $('start').firstChild.textContent=percent>=100?'今日已达标 ':'开始训练 ';
+  setText('streak',streak(S));setText('total-days',Object.values(S.checkins).filter(Boolean).length);setText('total-groups',S.totalGroups);
+  setText('setting-target',S.kegelTarget);setText('setting-hold',S.holdSec);setText('setting-rest',S.restSec);
+  setText('plan-day',`陪伴你的第 ${planDay(S)} 天 · 每组 10 次`);
+  document.querySelectorAll('[data-adjust]').forEach(button=>{
+    const [key,delta]=button.dataset.adjust.split(':'),n=Number(delta);
+    const bounds=key==='kegelTarget'?[1,10]:key==='holdSec'?[2,10]:[S.holdSec,20];
+    button.disabled=S[key]+n<bounds[0]||S[key]+n>bounds[1];
+  });
+  renderSound();renderWeek();renderCalendar();renderRecent();
+}
+function renderSound(){
+  $('sound-toggle').setAttribute('aria-checked',String(S.sound));
+  $('exercise-sound').setAttribute('aria-pressed',String(S.sound));
+  $('exercise-sound').setAttribute('aria-label',S.sound?'关闭提示音':'开启提示音');
+  $('exercise-sound').querySelector('use').setAttribute('href',S.sound?'#i-sound':'#i-mute');
+}
+function dayStatus(key){return S.checkins[key]?'done':S.records[key]?.groups>0?'partial':'';}
+function renderWeek(){
+  const now=new Date(),monday=new Date(now.getFullYear(),now.getMonth(),now.getDate(),12);
+  monday.setDate(monday.getDate()-(monday.getDay()+6)%7);
+  const fragment=document.createDocumentFragment();let practiced=0;
+  for(let i=0;i<7;i++){
+    const d=new Date(monday);d.setDate(d.getDate()+i);const key=dateKey(d),status=dayStatus(key);
+    if(status)practiced++;
+    const cell=document.createElement('div');cell.className=`week-day ${status} ${key===dateKey()?'today':''}`;
+    cell.setAttribute('aria-label',`${shortDate(key)}${key===dateKey()?'，今天':''}，${status==='done'?'已达标':status?'有练习':'未记录'}`);
+    const label=document.createElement('span');label.textContent='一二三四五六日'[i];cell.append(label);
+    const disc=document.createElement('span');disc.className='day-disc';
+    if(status==='done')disc.innerHTML=icon('check');else disc.textContent=d.getDate();
+    cell.append(disc);fragment.append(cell);
+  }
+  $('week-strip').replaceChildren(fragment);
+  setText('week-note',practiced?`这周已经练习 ${practiced} 天，每一点坚持都算数。`:'不用着急，今天就是很好的开始。');
+}
+function renderCalendar(){
+  const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),lead=(new Date(y,m,1).getDay()+6)%7,days=new Date(y,m+1,0).getDate();
+  setText('calendar-title',`${y} 年 ${m+1} 月`);
+  const total=Math.ceil((lead+days)/7)*7,fragment=document.createDocumentFragment();
+  for(let i=0;i<total;i++){
+    const d=new Date(y,m,i-lead+1,12),key=dateKey(d),inMonth=d.getMonth()===m,status=inMonth?dayStatus(key):'';
+    const cell=document.createElement('span');cell.className=`calendar-cell ${!inMonth?'dim':status} ${key===dateKey()?'today':''}`;
+    cell.textContent=d.getDate();cell.setAttribute('aria-label',`${shortDate(key)}${key===dateKey()?'，今天':''}，${status==='done'?'已达标':status?'有练习':'未记录'}`);fragment.append(cell);
+  }
+  $('calendar-grid').replaceChildren(fragment);
+}
+function renderRecent(){
+  const keys=[...new Set([...Object.keys(S.records).filter(k=>S.records[k]?.groups>0),...Object.keys(S.checkins).filter(k=>S.checkins[k])])].filter(k=>/^\d{4}-\d{1,2}-\d{1,2}$/.test(k)).sort((a,b)=>displayDate(b)-displayDate(a)).slice(0,5);
+  if(!keys.length){$('recent-records').innerHTML='<div class="empty-records"><strong>第一份记录，等你开启</strong>完成一组练习后，会自动记录在这里。</div>';return;}
+  const fragment=document.createDocumentFragment();
+  keys.forEach(key=>{
+    const row=document.createElement('div');row.className='recent-row';const text=document.createElement('div');
+    text.textContent=key===dateKey()?'今天':shortDate(key);
+    const sub=document.createElement('small'),groups=S.records[key]?.groups;
+    sub.textContent=groups?`完成 ${groups} 组 · ${groups*10} 次`:'历史达标记录';text.append(sub);
+    const badge=document.createElement('span');badge.className='tag';badge.textContent=S.checkins[key]?'目标达成':'已留下进步';row.append(text,badge);fragment.append(row);
+  });$('recent-records').replaceChildren(fragment);
+}
+function route(page,push=true){
+  if(!knownPages.includes(page))page='home';
+  if(page==='guide')guideReturn=currentPage==='settings'?'settings':'home';
+  document.querySelectorAll('.page').forEach(el=>{const active=el.id===page;el.hidden=!active;el.classList.toggle('active',active);});
+  document.querySelectorAll('.tab').forEach(el=>{const active=el.dataset.page===page;el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
+  document.body.classList.toggle('focus-mode',['exercise','guide','complete'].includes(page));
+  currentPage=page;window.scrollTo({top:0,behavior:'instant'});
+  if(push)history.pushState({page},'',location.pathname+location.search);
+  if(page!=='exercise')releaseWakeLock();
+  if(['home','settings','records'].includes(page))render();
+  const heading=$(page).querySelector('h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
+  safeUpdate();
+}
+history.replaceState({page:'home'},'',location.pathname+location.search);
+document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>route(button.dataset.page)));
+window.addEventListener('popstate',async ev=>{
+  let target=ev.state?.page||'home';if(['exercise','complete'].includes(target))target='home';
+  if(session&&currentPage==='exercise'){
+    pauseSession();
+    const leave=await showDialog('结束这次练习？','退出后，这一组尚未完成的练习不会计入记录。已完成的历史组数会保留。','结束练习','返回练习');
+    if(!leave){history.pushState({page:'exercise'},'',location.href);return;}
+    abandonSession();
+  }
+  route(target,false);
+});
+$('guide-back').addEventListener('click',()=>route(guideReturn));
+document.querySelectorAll('[data-adjust]').forEach(button=>button.addEventListener('click',()=>{
+  rollover();const [key,delta]=button.dataset.adjust.split(':');S[key]+=Number(delta);S=normalize(S);markTarget();save();render();
+}));
+async function unlockAudio(){
+  if(!S.sound)return;
+  try{audioContext??=new (window.AudioContext||window.webkitAudioContext)();if(audioContext.state==='suspended')await audioContext.resume();}catch{}
+}
+function tone(frequency=660){
+  if(!S.sound||!audioContext||audioContext.state!=='running')return;
+  try{const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),t=audioContext.currentTime;
+    oscillator.type='sine';oscillator.frequency.setValueAtTime(frequency,t);gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(.045,t+.015);gain.gain.exponentialRampToValueAtTime(.001,t+.18);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(t);oscillator.stop(t+.2);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+  }catch{}
+}
+function toggleSound(){S.sound=!S.sound;save();renderSound();unlockAudio();toast(S.sound?'轻提示音已开启':'已静音');}
+$('sound-toggle').addEventListener('click',toggleSound);$('exercise-sound').addEventListener('click',toggleSound);
+async function requestWakeLock(){
+  if(wakeLock||wakePending||!navigator.wakeLock||document.hidden||currentPage!=='exercise'||session?.phase==='paused')return;
+  wakePending=true;
+  try{const lock=await navigator.wakeLock.request('screen');if(currentPage!=='exercise'||session?.phase==='paused'||document.hidden){await lock.release();return;}wakeLock=lock;lock.addEventListener('release',()=>{if(wakeLock===lock)wakeLock=null;});}catch{}finally{wakePending=false;}
+}
+function releaseWakeLock(){if(wakeLock){const lock=wakeLock;wakeLock=null;lock.release().catch(()=>{});}}
+function startSession(){
+  rollover();session=new Session(S);lastPhase='';lastDone=-1;pointerId=null;keyHeld=null;
+  route('exercise');unlockAudio();requestWakeLock();drawSession();
+}
+$('start').addEventListener('click',async()=>{
+  rollover();
+  if(S.kegelGroups>=S.kegelTarget){if(!await showDialog('今天的目标已经完成','可以收下今天的进步，好好放松。如果你正按专业指导增加练习，也可以继续。','再练一组','今天先到这里'))return;}
+  startSession();
+});
+$('guide-start').addEventListener('click',startSession);
+function scheduleFrame(){if(!frameId&&session&&['hold','rest'].includes(session.phase))frameId=requestAnimationFrame(frame);}
+function frame(now){frameId=0;if(!session)return;session.tick(now);drawSession();scheduleFrame();}
+function stopFrame(){cancelAnimationFrame(frameId);frameId=0;}
+function drawSession(){
+  if(!session)return;
+  const {phase,done}=session;
+  $('training-progress').style.strokeDashoffset=100-session.progress*100;
+  setText('phase-time',phase==='paused'?'—':phase==='release'?'✓':session.remaining);
+  if(lastDone!==done){
+    $('rep-dots').innerHTML=Array.from({length:10},(_,i)=>`<i class="${i<done?'done':i===done?'current':''}"></i>`).join('');
+    $('rep-dots').setAttribute('aria-label',`已完成 ${done} 次`);
+    lastDone=done;
+  }
+  setText('rep-number',Math.min(10,phase==='rest'?done:done+1));
+  if(phase===lastPhase)return;
+  const previous=lastPhase;lastPhase=phase;
+  $('training-stage').dataset.phase=phase;
+  const titles={ready:done?'继续下一次':'准备好了吗',hold:'轻轻收紧',release:'可以松开了',rest:'慢慢放松',paused:'歇一小会儿',complete:'这一组完成了'};
+  const subtitles={ready:'按住蜜桃，轻轻收紧盆底肌',hold:'保持这个力度，记得自然呼吸',release:'松开手指，让肌肉完全放松',rest:done===10?'完成最后一次放松，就结束这一组':'不着急，给身体充分放松的时间',paused:'已完成的次数会保留，继续时先放松',complete:'放松一下，收下今天的进步'};
+  setText('phase-title',titles[phase]);setText('phase-subtitle',subtitles[phase]);
+  setText('timer-unit',phase==='rest'?'秒放松':phase==='release'?'请松手':phase==='paused'?'已暂停':'秒收紧');
+  setText('breath-note',phase==='paused'?'继续后，未完成的这一次会重新开始':'自然呼吸，腹部与臀部保持放松');
+  $('hold-button').setAttribute('aria-pressed',String(['hold','release'].includes(phase)));
+  $('hold-button').setAttribute('aria-disabled',String(['paused','rest','complete'].includes(phase)));
+  $('pause').querySelector('use').setAttribute('href',phase==='paused'?'#i-play':'#i-pause');
+  $('pause').querySelector('span').textContent=phase==='paused'?'继续练习':'暂停练习';
+  document.querySelectorAll('[data-step]').forEach(el=>el.classList.toggle('current',el.dataset.step===(phase==='hold'?'release':phase==='ready'?'hold':'rest')));
+  if(phase==='release')tone(740);
+  if(phase==='ready'&&previous==='rest')tone(540);
+  if(phase==='complete')finishSession();
+}
+function press(){if(!session||session.phase!=='ready')return false;unlockAudio();session.press(performance.now());drawSession();scheduleFrame();return true;}
+function release(){if(!session)return;const result=session.release(performance.now());if(result==='early')toast('先放松一下，准备好再试这一次');drawSession();scheduleFrame();}
+const holdButton=$('hold-button');
+holdButton.addEventListener('pointerdown',ev=>{
+  if(ev.button!==0||pointerId!==null||keyHeld!==null)return;ev.preventDefault();
+  if(press()){pointerId=ev.pointerId;holdButton.setPointerCapture(ev.pointerId);}
+});
+holdButton.addEventListener('pointerup',ev=>{
+  if(ev.pointerId!==pointerId)return;ev.preventDefault();pointerId=null;
+  if(holdButton.hasPointerCapture(ev.pointerId))holdButton.releasePointerCapture(ev.pointerId);release();
+});
+holdButton.addEventListener('pointercancel',ev=>{if(ev.pointerId===pointerId){pointerId=null;pauseSession();}});
+holdButton.addEventListener('lostpointercapture',ev=>{if(ev.pointerId===pointerId){pointerId=null;pauseSession();}});
+holdButton.addEventListener('contextmenu',ev=>ev.preventDefault());
+holdButton.addEventListener('keydown',ev=>{if(![' ','Enter'].includes(ev.key))return;ev.preventDefault();if(!ev.repeat&&keyHeld===null&&pointerId===null&&press())keyHeld=ev.key;});
+window.addEventListener('keyup',ev=>{if(keyHeld===ev.key){ev.preventDefault();keyHeld=null;release();}});
+holdButton.addEventListener('blur',()=>{if(keyHeld!==null){keyHeld=null;pauseSession();}});
+function pauseSession(){
+  if(!session||session.phase==='complete')return;
+  pointerId=null;keyHeld=null;session.pause(performance.now());stopFrame();releaseWakeLock();drawSession();
+}
+$('pause').addEventListener('click',()=>{
+  if(!session)return;
+  if(session.phase==='paused'){session.resume(performance.now());unlockAudio();requestWakeLock();drawSession();scheduleFrame();}
+  else pauseSession();
+});
+function abandonSession(){stopFrame();session=null;pointerId=null;keyHeld=null;releaseWakeLock();}
+$('exit-training').addEventListener('click',async()=>{
+  if(!session)return;
+  if(session.done===0&&session.phase==='ready'){abandonSession();route('home');return;}
+  pauseSession();
+  if(await showDialog('结束这次练习？','退出后，这一组尚未完成的练习不会计入记录。已完成的历史组数会保留。','结束练习','返回练习')){abandonSession();route('home');}
+});
+function finishSession(){
+  if(!session||session.credited)return;
+  session.credited=true;const seconds=(session.holdMs+session.restMs)/1000*session.reps;
+  S=completeGroup(S,seconds);save();tone(880);
+  setText('complete-time',`${seconds}秒`);setText('complete-groups',`${S.kegelGroups}/${S.kegelTarget}`);
+  setText('complete-subtitle',S.kegelGroups>=S.kegelTarget?'今日目标已达成，现在可以好好放松。':'放松一下，让身体记住这份从容。');
+  abandonSession();history.replaceState({page:'complete'},'',location.href);route('complete',false);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){if(session)pauseSession();releaseWakeLock();}
+  else {render();swRegistration?.update().catch(()=>{});safeUpdate();}
+});
+window.addEventListener('pagehide',()=>{if(session)pauseSession();releaseWakeLock();});
+window.addEventListener('storage',ev=>{
+  if(ev.key!==KEY)return;
+  try{S=normalize(ev.newValue?JSON.parse(ev.newValue):{});if(session)pauseSession();render();if(session)toast('记录已在另一页面更新，当前练习已暂停');}catch{}
+});
+setInterval(()=>{if(S.day!==dateKey())render();},15000);
+let modalResolve=null,modalFocus=null;
+function showDialog(title,body,confirm='知道了',cancel=''){
+  if(modalResolve)return Promise.resolve(false);
+  setText('dialog-title',title);setText('dialog-body',body);setText('dialog-confirm',confirm);setText('dialog-cancel',cancel);
+  $('dialog-cancel').hidden=!cancel;modalFocus=document.activeElement;
+  $('dialog').setAttribute('aria-labelledby','dialog-title');$('dialog').setAttribute('aria-describedby','dialog-body');$('dialog').showModal();
+  // Prefer the non-destructive action in confirmation dialogs.
+  (cancel?$('dialog-cancel'):$('dialog-confirm')).focus();
+  return new Promise(resolve=>{modalResolve=resolve;});
+}
+function closeDialog(value){$('dialog').close();const resolve=modalResolve;modalResolve=null;modalFocus?.focus({preventScroll:true});resolve?.(value);}
+$('dialog-confirm').addEventListener('click',()=>closeDialog(true));$('dialog-cancel').addEventListener('click',()=>closeDialog(false));
+$('dialog').addEventListener('cancel',ev=>{ev.preventDefault();closeDialog(false);});
+$('install-help').addEventListener('click',()=>showDialog('把练习放在主屏幕','1. 用 iPhone 的 Safari 打开这个网址。\n2. 点分享按钮，选择「添加到主屏幕」。\n3. 添加后，从主屏幕图标打开。\n\n首次联网打开后，练习页面可离线使用。'));
+$('reset-data').addEventListener('click',async()=>{
+  if(!await showDialog('清空练习记录？','当前设备的打卡记录与累计组数将被清空，无法撤销。你的练习节奏设置会保留。','清空记录','保留记录'))return;
+  const next=normalize({kegelTarget:S.kegelTarget,holdSec:S.holdSec,restSec:S.restSec,sound:S.sound});
+  try{localStorage.removeItem(KEY+'_pre_v5');localStorage.setItem(KEY,JSON.stringify(next));S=next;storageBlocked=false;render();$('storage-warning').hidden=true;toast('记录已清空，随时可以重新开始');}catch{toast('未能清空记录，请检查浏览器存储设置');}
+});
+$('prev-month').addEventListener('click',()=>{calendarDate.setMonth(calendarDate.getMonth()-1);renderCalendar();});
+$('next-month').addEventListener('click',()=>{calendarDate.setMonth(calendarDate.getMonth()+1);renderCalendar();});
+// Activate a downloaded update only between sessions, preserving an ongoing set.
+function safeUpdate(){
+  if(session||currentPage==='complete'||$('dialog').open)return;
+  if(swRegistration?.waiting)swRegistration.waiting.postMessage({type:'SKIP_WAITING'});
+  if(updatePending&&!reloading){reloading=true;location.reload();}
+}
+if('serviceWorker' in navigator && ['http:','https:'].includes(location.protocol)){
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!hadController){hadController=true;return;}
+    updatePending=true;safeUpdate();
+  });
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>{
+      swRegistration=reg;reg.update().catch(()=>{});safeUpdate();
+      reg.addEventListener('updatefound',()=>{const worker=reg.installing;worker?.addEventListener('statechange',()=>{if(worker.state==='installed')safeUpdate();});});
+    }).catch(()=>{});
+  });
+}
+render();
