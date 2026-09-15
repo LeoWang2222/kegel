@@ -1,5 +1,5 @@
-const CACHE='kegel-v5.0.2';
-const ASSETS=['./','./index.html','./styles.css','./app.mjs','./core.mjs','./peach.svg','./favicon.svg','./manifest.webmanifest','./apple-touch-icon.png','./icon-512.png'];
+const CACHE='kegel-v5.0.3';
+const ASSETS=['./','./index.html','./styles.css','./app.js','./peach.svg','./favicon.svg','./manifest.webmanifest','./apple-touch-icon.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS))));
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
