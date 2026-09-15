@@ -1,15 +1,25 @@
 {
   "name": "凯格尔运动小助手",
   "short_name": "凯格尔",
-  "description": "男性凯格尔PC肌训练小助手，按住收紧、松开放松",
+  "description": "温和的男性盆底肌训练、清晰的节奏引导与每日记录。",
+  "id": "./",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#edf5f0",
-  "theme_color": "#edf5f0",
+  "background_color": "#f6f5f0",
+  "theme_color": "#f6f5f0",
   "icons": [
-    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }

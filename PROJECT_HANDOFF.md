@@ -1,64 +1,26 @@
-# 凯格尔运动小助手 · 项目交接文档（PROJECT_HANDOFF）
+# 凯格尔运动小助手 · 精修版交接
 
-> 用途：当对话上下文丢失 / 换 AI / 换设备时，凭本文档可完整接手本项目。
-> 最后更新：2026-09（v1 上线时）
+当前版本：5.0（2026-09-15）
 
-## 一、项目是什么
+- 成品目录：桌面「凯格尔运动小助手·精修版」。参考目录保持原样。
+- 仓库：https://github.com/LeoWang2222/kegel
+- Pages：https://leowang2222.github.io/kegel/
+- 部署：main 分支根目录；无打包步骤、无运行时第三方依赖。
+- 文件和使用方法见 README.md。
 
-「凯格尔运动小助手」是一个**男性凯格尔（PC肌）训练**网页 APP（PWA），用户为 iPhone 17 单人自用。
-核心玩法：**手指按住屏幕上的蜜桃 = 收紧PC肌，松开 = 放松**，一组 10 次，每天目标若干组（默认 3 组）。
-本项目由「轻提纲」（提肛练习助手）复刻改造而来：交互、设计、代码结构完全沿用，仅替换名称、文案（面向男性提升性能力）、图标（💪）、存储键与 SW 缓存名。
+## 不要破坏的行为
 
-## 二、关键地址与账号
+1. localStorage 键仍为 kegel_helper_v1，日期为不补零的本地 年-月-日。
+2. 首次旧数据迁移备份到 kegel_helper_v1_pre_v5；保留旧 holdSec、目标、累计组数与 checkins。旧历史组数不完整时只显示历史达标，不伪造详细次数。
+3. core.mjs 的 Session 只计算时序，app.mjs 使用 requestAnimationFrame 供时；松手在帧间到达截止时间也应计入。
+4. 必须实际松手才进入放松；最终一次放松结束后才完成一组。意外触摸取消或后台切换应暂停，不能当作正常松手。
+5. 暂停保留已完成次数。未完成收紧不续接剩余秒数，恢复后重新收紧；已完成收紧后的放松重新计足时长。
+6. 训练中与完成小结页不自动刷新应用。下载更新后，在离开本次训练与小结后切换版本。
+7. 每次修改应用资源必须递增 sw.js 的 CACHE。缓存只删除 kegel- 前缀的旧版本，避免影响同源其他应用。
+8. 字体为系统字体；SVG 吉祥物、图标不依赖外部 CDN。只在关键阶段发出可关闭的轻提示音，不承诺 iPhone 网页能提供原生触觉反馈。
+9. 清空记录需要应用内二次确认，仅清空本应用记录，保留当前训练节奏。
+10. 用户偏好：中文，功能克制，重视精美画面和按压手感；在独立桌面文件夹交付，并上传 GitHub 可直接访问。
 
-| 项目 | 值 |
-|---|---|
-| 网站地址（手机访问） | https://leowang2222.github.io/kegel/ |
-| GitHub 仓库（公开） | https://github.com/LeoWang2222/kegel |
-| GitHub 账号 | LeoWang2222（gh CLI 已登录） |
-| 本地文件夹 | `C:\Users\24509\Desktop\凯格尔运动小助手`（git main 分支，remote 已配好） |
-| git 提交身份 | `LeoWang2222` / `LeoWang2222@users.noreply.github.com`（用 `git -c user.name=... -c user.email=...` 提交） |
+## 验证
 
-## 三、文件清单
-
-| 文件 | 作用 |
-|---|---|
-| `index.html` | **整个 APP 本体**：HTML+CSS+JS 全部内嵌，单文件 |
-| `sw.js` | Service Worker 离线缓存。**每次改代码必须升级里面的 `CACHE` 版本号**（当前 `kegel-v3`），否则手机不更新。v3 起：页面导航走网络优先（联网即最新，断网用缓存兜底），静态资源缓存优先 |
-| `manifest.webmanifest` | PWA 配置（standalone、图标、主题色 #edf5f0） |
-| `apple-touch-icon.png` (180×180) | iOS 主屏幕图标（PIL + Segoe UI Emoji 生成的 💪 图） |
-| `icon-512.png` (512×512) | manifest 图标 |
-
-## 四、功能现状（v1）
-
-与「轻提纲」v3 完全一致：首页（今日状态/训练入口/当前计划/教程入口/提醒倒计时）、练习页（按住收紧 `holdSec` 秒 × 10 次 = 1 组，提前松手作废，庆祝动效）、打卡页（月历自动打勾、连续/累计统计）、我的（目标组数 1~10、收紧秒数 2~10、清空数据）。
-v2 新增：首页「新手指南」入口 → 教程页 `pg-guide`（覆盖层，有返回键，可滚动不锁屏），内容含：什么是PC肌、找PC肌的3个方法、正确练法5步、4周进阶计划、常见错误、好处、注意事项。
-文案差异：定位男性 PC 肌训练（提升硬度与持久力），鼓励语男性化，吉祥物仍是蜜桃 SVG，图标为 💪。
-
-## 五、技术要点与坑（继承自原项目，同样适用）
-
-1. **数据存储**：localStorage，键 `kegel_helper_v1`（全新，无迁移逻辑）。日期格式 `年-月-日`（不补零），勿改。
-2. **iOS 无 Vibration API**：震动用 `<input type="checkbox" switch>` + label.click() 的 iOS 17.4+ 触觉 hack（`haptic()`），WebAudio `beep()` 兜底。
-3. **iOS 网页无法后台推送**：提醒只是页面内倒计时，别承诺系统级通知。
-4. **iOS 主屏幕图标必须真实 PNG**（不支持 SVG/data URI）。重绘图标：用 PIL + `C:\Windows\Fonts\seguiemj.ttf`，`draw.text(..., embedded_color=True)`。
-5. **自动更新机制（v3 新增）**：index.html 注册 SW 时带 `updateViaCache:"none"`，回到前台时 `reg.update()`，并监听 `controllerchange` 自动 `location.reload()`（有 `swReloaded` 防循环）。效果：推送新版后，用户打开/切回 APP 一两次即自动变最新，无需删图标重装。改这套逻辑时注意保持防刷新循环标记。
-5. **进度环**：SVG circle r=120，周长 754，改半径要同步改。
-6. **按压交互**：Pointer Events，`touch-action:none` + 阻止 contextmenu。
-7. **部署流程**：
-   ```bash
-   cd "/c/Users/24509/Desktop/凯格尔运动小助手"
-   # 1. sw.js 里 CACHE 版本号 +1
-   # 2. 抽出 <script> 用 node --check 验证
-   git add -A && git -c user.name="LeoWang2222" -c user.email="LeoWang2222@users.noreply.github.com" commit -m "说明" && git push
-   # 3. curl https://leowang2222.github.io/kegel/index.html 验证（Pages 构建约 30~60 秒）
-   ```
-8. **GitHub Pages 免费版要求公开仓库**：数据在手机本地，仓库无隐私内容。
-
-## 六、环境备忘（本机）
-
-- Windows + Git Bash；Python 3.14 在 `D:\python`（有 PIL）；Node v24 在 `D:\NODE`；gh CLI 在 `C:\Program Files\GitHub CLI`
-- iOS 添加到主屏幕：Safari 打开 https://leowang2222.github.io/kegel/ → 分享 → 添加到主屏幕
-
-## 七、用户偏好
-
-- 中文交流；砍功能求简洁、求手感，不要功能堆砌；只做凯格尔训练，勿加无关功能
+npm test（11 项）与 npm run check 均通过。浏览器检查 393×852、360×740 两种尺寸；离线验证通过。没有连接真实 iPhone，不能把桌面浏览器检查称作真机验证。进一步手感迭代请使用真实设备反馈。
