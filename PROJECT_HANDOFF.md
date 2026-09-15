@@ -5,7 +5,7 @@
 - 成品目录：桌面「凯格尔运动小助手·精修版」。参考目录保持原样。
 - 仓库：https://github.com/LeoWang2222/kegel
 - Pages：https://leowang2222.github.io/kegel/
-- 部署：main 分支根目录；无打包步骤、无运行时第三方依赖。
+- 部署：main 分支根目录；无运行时第三方依赖。修改 app.mjs/core.mjs 后执行 npm run build，生成普通脚本 app.js，以支持双击 index.html。npm run check 会检查生成文件是否同步。
 - 文件和使用方法见 README.md。
 
 ## 不要破坏的行为

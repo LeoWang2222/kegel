@@ -30,7 +30,9 @@
 
 这是网页应用，不是 App Store 原生安装包。屏幕按压用于跟随节奏，不能检测盆底肌发力。训练不保证硬度、持久力或特定时间内的效果。指导内容参考 [NIDDK](https://www.niddk.nih.gov/health-information/urologic-diseases/kegel-exercises) 与 [Mayo Clinic](https://www.mayoclinic.org/healthy-lifestyle/mens-health/in-depth/kegel-exercises-for-men/art-20045074)。
 
-## 本地预览
+## 本地打开与预览
+
+可以直接双击本目录的 index.html 使用。请保留同目录的 app.js、styles.css 和图片文件。直接打开的本地文件与线上网址属于不同的存储空间，记录不互通。
 
 需要 Python 3。在本目录运行：
 
@@ -38,7 +40,7 @@
 python -m http.server 8766 --bind 127.0.0.1
 ```
 
-打开 http://127.0.0.1:8766 。请通过 HTTP 预览，不要直接双击 HTML（浏览器会限制 ES 模块）。
+打开 http://127.0.0.1:8766 可预览安装与离线缓存功能；这些功能仅用于 HTTP/HTTPS 访问。
 
 ## 检查
 
@@ -60,10 +62,12 @@ npm run check
 | index.html | 页面与语义化结构 |
 | styles.css | 视觉、布局和动效 |
 | app.mjs | 界面交互、持久化、音频、PWA 更新 |
+| app.js | 自动生成的普通脚本，兼容双击 HTML 与线上访问 |
+| scripts/build.mjs | 无依赖构建脚本，修改模块源文件后运行 npm run build |
 | core.mjs | 可测试的训练状态与数据逻辑 |
 | peach.svg / favicon.svg | 吉祥物和图标源文件 |
 | apple-touch-icon.png / icon-512.png | 主屏幕图标 |
 | sw.js / manifest.webmanifest | 离线缓存、安装配置 |
 | tests/core.test.mjs | 核心逻辑测试 |
 
-部署仍使用 GitHub Pages：main 分支根目录。更新任何已缓存的应用文件时，必须递增 sw.js 的 CACHE 版本，保证 HTML、样式与模块作为完整版本更新。
+部署仍使用 GitHub Pages：main 分支根目录。修改模块源文件后先执行 npm run build，提交生成的 app.js。更新任何已缓存的应用文件时，必须递增 sw.js 的 CACHE 版本，保证 HTML、样式与脚本作为完整版本更新。
