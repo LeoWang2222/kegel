@@ -14,6 +14,8 @@ export function normalize(raw, now = new Date()) {
   s.records = {...object(s.records)};
   s.planStart = /^\d{4}-\d{1,2}-\d{1,2}$/.test(s.planStart || '') ? s.planStart : dateKey(now);
   s.sound = s.sound === true;
+  s.music = s.music === true;
+  s.musicVolume = integer(s.musicVolume, 35, 0, 100);
   s.trainingMode = s.trainingMode === 'auto' ? 'auto' : 'hold';
   s.theme = ['light','dark','system'].includes(s.theme) ? s.theme : 'system';
   s.completedSessions = Array.isArray(s.completedSessions) ? s.completedSessions.filter(id=>typeof id==='string').slice(-100) : [];

@@ -83,3 +83,11 @@ html[data-theme="dark"] .danger{color:#d1a38d}html[data-theme="dark"] .privacy-n
 @media(max-width:370px){.setting-row small{font-size:11px!important}.setting-row strong{font-size:13px}.weekly-summary{padding:18px}.weekly-summary p{font-size:11px}.phase-copy p{font-size:12px}.training-controls>p{font-size:10px}.session-meta{font-size:10px}}
 @media(max-height:680px) and (max-width:599px){.phase-track{font-size:11px}.breath-note{font-size:11px}.exercise-top>.eyebrow{display:block;font-size:10px;margin-top:6px}.phase-copy{height:80px}.rep-caption{margin-top:5px}.training-stage{max-width:235px}.training-controls>p{margin-top:8px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.hold-button img{will-change:auto}}
+/* 5.2: quiet, independent music controls. */
+.music-pill{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 15px;margin:0 auto 8px;border-radius:24px;font-size:12px;color:var(--muted);background:var(--surface-soft)}
+.music-pill .icon{width:17px;height:17px}.music-pill[aria-pressed="true"]{color:var(--green)}
+.music-indicator{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.3}.music-pill[data-playing="true"] .music-indicator{opacity:1;box-shadow:0 0 0 3px #8ca67e22}
+.music-card .setting-row small{max-width:210px}.music-volume-row{display:flex;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding:16px 0 10px;font-size:12px;color:var(--muted);gap:4px}.music-volume-row output{margin-left:auto;font-variant-numeric:tabular-nums}
+.music-volume-row input{width:100%;height:44px;margin:0;accent-color:var(--action);cursor:pointer}.music-volume-row input:focus-visible{outline:2px solid var(--green);outline-offset:3px;border-radius:8px}
+@media(max-height:780px) and (max-width:599px){.music-pill{margin-bottom:5px}.training-controls{margin-top:8px}.training-stage{max-width:255px}.breath-note{margin:12px 0}.exercise-top{padding-top:9px}.phase-copy{height:85px}}
+@media(max-height:680px) and (max-width:599px){.training-stage{max-width:220px}.phase-copy{height:76px}}
