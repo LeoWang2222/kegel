@@ -1,3 +1,10 @@
+// WebKit's default ambient session follows the iPhone silent switch.
+// Select the media playback channel before creating/resuming an AudioContext.
+export function configurePlayback(navigatorLike){
+  try{if(navigatorLike?.audioSession){navigatorLike.audioSession.type='playback';return true;}}catch{}
+  return false;
+}
+
 // Original ambient composition: overlapping warm chords and sparse bell notes.
 // All oscillators have whole cycles per loop, including the wrapped envelopes.
 export function composeAmbient(sampleRate=22050) {

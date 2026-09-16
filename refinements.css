@@ -91,3 +91,5 @@ html[data-theme="dark"] .danger{color:#d1a38d}html[data-theme="dark"] .privacy-n
 .music-volume-row input{width:100%;height:44px;margin:0;accent-color:var(--action);cursor:pointer}.music-volume-row input:focus-visible{outline:2px solid var(--green);outline-offset:3px;border-radius:8px}
 @media(max-height:780px) and (max-width:599px){.music-pill{margin-bottom:5px}.training-controls{margin-top:8px}.training-stage{max-width:255px}.breath-note{margin:12px 0}.exercise-top{padding-top:9px}.phase-copy{height:85px}}
 @media(max-height:680px) and (max-width:599px){.training-stage{max-width:220px}.phase-copy{height:76px}}
+
+.music-preview-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 4px 0}.music-preview-row>span{font-size:11px;color:var(--muted)}.music-preview-row .text-button{color:var(--green)}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {AmbientMusic,composeAmbient} from '../music.mjs';
+import {AmbientMusic,composeAmbient,configurePlayback} from '../music.mjs';
 import {normalize} from '../core.mjs';
 
 function context(){
@@ -43,4 +43,12 @@ test('volume changes ramp separately and immediate background stop silences fadi
  const {ctx,music}=player();music.start(35);ctx.currentTime=2;music.setVolume(80);assert.equal(music.voice.automation.to,.8*.65);
  music.stop();music.stop({immediate:true});assert.equal(ctx.nodes[0].stopAt,2);
  const voice=[...music.voices][0];assert.deepEqual(voice.gain.gain.events.at(-1),['set',0,2]);
+});
+
+test('iPhone playback channel is selected with safe fallback on unsupported browsers',()=>{
+ const safari={audioSession:{type:'auto'}};
+ assert.equal(configurePlayback(safari),true);assert.equal(safari.audioSession.type,'playback');
+ assert.equal(configurePlayback({}),false);
+ assert.equal(configurePlayback({get audioSession(){throw new Error('unsupported');}}),false);
+ assert.equal(configurePlayback({audioSession:{set type(value){throw new Error('unsupported');}}}),false);
 });
