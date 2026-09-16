@@ -49,3 +49,51 @@ test('final repetition must include its relaxation before completion',()=>{
  for(let n=0;n<10;n++){assert.equal(x.press(t),true);x.release(t+3000);assert.equal(x.phase,'rest');x.tick(t+9000);t+=9000;}
  assert.equal(x.done,10);assert.equal(x.phase,'complete');x.release(t);x.press(t);x.pause(t);assert.equal(x.done,10);assert.equal(x.phase,'complete');
 });
+test('upgrade preserves the user training settings exactly',()=>{
+ const s=normalize({holdSec:5,restSec:8,kegelTarget:4,sound:true,day:'2026-9-15',kegelGroups:2},now);
+ assert.equal(s.holdSec,5);assert.equal(s.restSec,8);assert.equal(s.kegelTarget,4);assert.equal(s.sound,true);assert.equal(s.kegelGroups,2);assert.equal(s.trainingMode,'hold');assert.equal(s.theme,'system');
+});
+test('automatic guidance prepares then alternates ten complete cycles',()=>{
+ const s=new Session({trainingMode:'auto'});s.start(0);assert.equal(s.phase,'prepare');assert.equal(s.press(1),false);assert.equal(s.release(2),null);
+ s.tick(2999);assert.equal(s.phase,'prepare');s.tick(3000);assert.equal(s.phase,'hold');let t=3000;
+ for(let i=0;i<10;i++){s.tick(t+3000);assert.equal(s.phase,'rest');assert.equal(s.done,i+1);s.tick(t+9000);t+=9000;}
+ assert.equal(s.phase,'complete');assert.equal(s.done,10);
+});
+test('delayed auto frame only advances one phase and does not skip relaxation',()=>{
+ const s=new Session({trainingMode:'auto'});s.start(0);s.tick(3000);s.tick(999999);
+ assert.equal(s.done,1);assert.equal(s.phase,'rest');assert.equal(s.remaining,6);
+});
+test('background pause does not count a stale automatic contraction',()=>{
+ const s=new Session({trainingMode:'auto'});s.start(0);s.tick(3000);s.pause(60000);
+ assert.equal(s.done,0);assert.equal(s.phase,'paused');s.resume(70000,true);assert.equal(s.phase,'prepare');s.tick(73000);assert.equal(s.phase,'hold');assert.equal(s.remaining,3);
+});
+test('reload keeps repetitions, timing and mode while requiring explicit preparation',()=>{
+ const s=new Session({holdSec:5,restSec:8,trainingMode:'auto'});s.start(0);s.tick(3000);s.tick(8000);
+ const stored=JSON.parse(JSON.stringify(s.snapshot())),restored=Session.restore(stored);
+ assert.equal(restored.phase,'paused');assert.equal(restored.done,1);assert.equal(restored.mode,'auto');assert.equal(restored.holdMs,5000);assert.equal(restored.restMs,8000);
+ restored.resume(100000,true);assert.equal(restored.phase,'prepare');restored.tick(103000);assert.equal(restored.phase,'rest');assert.equal(restored.remaining,8);
+});
+test('manual release prompt saved before closing counts once and resumes relaxation',()=>{
+ const s=new Session();s.press(0);s.tick(3000);const saved=s.snapshot();
+ assert.equal(s.done,0);assert.equal(saved.done,1);assert.equal(saved.nextPhase,'rest');
+ const r=Session.restore(saved);r.resume(8000,true);r.tick(11000);r.tick(17000);assert.equal(r.done,1);assert.equal(r.phase,'ready');
+});
+test('resume preparation can be interrupted without losing a pending rest',()=>{
+ const s=new Session();s.press(0);s.release(3000);s.pause(4000);s.resume(10000,true);s.pause(11000);
+ const r=Session.restore(s.snapshot());r.resume(20000,true);r.tick(23000);assert.equal(r.phase,'rest');assert.equal(r.done,1);assert.equal(r.remaining,6);
+});
+test('last rest restores safely and does not introduce an eleventh contraction',()=>{
+ const s=new Session();let t=0;
+ for(let i=0;i<10;i++){s.press(t);s.release(t+3000);if(i<9)s.tick(t+9000);t+=9000;}
+ const r=Session.restore(s.snapshot());assert.equal(r.done,10);r.resume(100000,true);r.tick(103000);assert.equal(r.phase,'rest');r.tick(109000);assert.equal(r.phase,'complete');
+});
+test('completion is idempotent and removes its resumable checkpoint atomically',()=>{
+ const session=new Session({id:'one-session'});let s=normalize({},now);s.pendingSession=session.snapshot();
+ s=completeGroup(s,90,now,session.id);assert.equal(s.totalGroups,1);assert.equal(s.pendingSession,null);
+ const again=completeGroup(s,90,now,session.id);assert.equal(again.totalGroups,1);assert.equal(again.kegelGroups,1);
+ again.pendingSession=session.snapshot();assert.equal(normalize(again,now).pendingSession,null);
+});
+test('invalid checkpoints cannot create false repetitions or change training settings',()=>{
+ const snap=new Session().snapshot();
+ for(const invalid of [null,{}, {...snap,done:11},{...snap,done:-1},{...snap,done:10,nextPhase:'ready'},{...snap,restSec:1},{...snap,holdSec:'5'},{...snap,mode:'unknown'}])assert.equal(Session.restore(invalid),null);
+});
