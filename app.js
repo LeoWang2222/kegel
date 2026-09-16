@@ -259,7 +259,7 @@ function render(){
   });
   document.querySelectorAll('[data-mode]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.mode===S.trainingMode)));
   setText('mode-help',S.trainingMode==='auto'?'准备 3 秒后自动切换，无需持续按住':'按住收紧，提示后松开放松');
-  const draft=S.pendingSession;$('resume-card').hidden=!draft;
+  const draft=S.pendingSession;$('resume-card').hidden=!draft;$('hero-restart').hidden=!draft;
   if(draft){setText('resume-title',`上次完成了 ${draft.done}/10 次`);setText('resume-details',`${draft.mode==='auto'?'自动引导':'按住训练'} · 收紧 ${draft.holdSec} 秒 / 放松 ${draft.restSec} 秒${draft.done===10?' · 还需完成最后一次放松':''}`);}
   applyTheme();renderSound();renderMusic();renderWeek();renderCalendar();renderRecent();
 }
@@ -428,10 +428,12 @@ async function requestStart(){
 }
 $('start').addEventListener('click',requestStart);$('guide-start').addEventListener('click',requestStart);
 $('resume-session').addEventListener('click',()=>startSession(true));
-$('restart-session').addEventListener('click',async()=>{
+async function restartSession(){
   if(!await showDialog('重新开始这一组？','将放弃这组未完成的进度，并按首页当前选择的模式和节奏重新开始。历史记录会保留。','重新开始','保留进度'))return;
   S.pendingSession=null;save();requestStart();
-});
+}
+$('restart-session').addEventListener('click',restartSession);
+$('hero-restart').addEventListener('click',restartSession);
 function scheduleFrame(){if(!frameId&&session&&['prepare','hold','rest'].includes(session.phase)){if(!lastFrameTime)lastFrameTime=performance.now();frameId=requestAnimationFrame(frame);}}
 function frame(now){
   frameId=0;if(!session)return;

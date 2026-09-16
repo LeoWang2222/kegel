@@ -93,3 +93,5 @@ html[data-theme="dark"] .danger{color:#d1a38d}html[data-theme="dark"] .privacy-n
 @media(max-height:680px) and (max-width:599px){.training-stage{max-width:220px}.phase-copy{height:76px}}
 
 .music-preview-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 4px 0}.music-preview-row>span{font-size:11px;color:var(--muted)}.music-preview-row .text-button{color:var(--green)}
+
+.hero-restart{display:flex;justify-content:center;width:100%;min-height:44px;margin-top:8px;border:1px solid var(--line);border-radius:14px;color:var(--green);background:var(--paper);font-size:13px}
