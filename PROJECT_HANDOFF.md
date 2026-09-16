@@ -1,6 +1,6 @@
 # 凯格尔运动小助手 · 精修版交接
 
-当前版本：5.2.1（2026-09-16）
+当前版本：5.2.2（2026-09-16）
 
 - 成品目录：桌面「凯格尔运动小助手·精修版」。参考目录保持原样。
 - 仓库：https://github.com/LeoWang2222/kegel
@@ -36,3 +36,5 @@ npm test（27 项）与 npm run check 均通过。没有连接真实 iPhone，�
 - 改动源代码后运行 npm run build 并更新缓存版本。
 
 5.2.1：用户反馈 iPhone 显示播放中但无声。WebKit 默认 ambient 通道受静音模式影响，configurePlayback 在用户开启声音时将支持的 navigator.audioSession.type 设为 playback，异常/不支持安全降级。新增 8 秒试听（独立临时状态，不修改音乐偏好、不计训练），离页/后台停止。实际用户手机输出仍需用户验证。
+
+5.2.2：首页 hero-restart 与上方 restart-session 共用 restartSession 确认处理，仅有 pendingSession 时显示，方便滚动到主按钮处直接重开。浏览器取消/确认及移动布局验证通过。

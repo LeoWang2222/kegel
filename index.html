@@ -40,6 +40,7 @@
   <div class="hero-divider"></div><div class="session-meta"><span><svg class="icon"><use href="#i-clock"/></svg><span id="duration">约 1 分 30 秒</span></span><span>10 次一组 · <span id="hold-meta">收紧 3 秒</span></span></div>
   <div class="segmented mode-picker" role="group" aria-label="训练方式"><button data-mode="hold" aria-pressed="true">按住训练</button><button data-mode="auto" aria-pressed="false">自动引导</button></div><p class="mode-help" id="mode-help">按住收紧，提示后松开放松</p>
   <button class="button primary" id="start">开始训练 <svg class="icon"><use href="#i-arrow"/></svg></button>
+  <button class="hero-restart text-button" id="hero-restart" hidden>重新开始本组</button>
  </div>
  <div class="section-heading"><h3>本周的坚持</h3><button class="text-button" data-page="records">查看记录 <span>↗</span></button></div>
  <div class="week-card"><div id="week-strip" class="week-strip"></div><p id="week-note">不用着急，今天就是很好的开始。</p></div>
@@ -83,7 +84,7 @@
  <div class="section-heading"><h3>外观</h3></div><div class="segmented theme-picker" role="group" aria-label="外观主题"><button data-theme="system" aria-pressed="true">跟随系统</button><button data-theme="light" aria-pressed="false">浅色</button><button data-theme="dark" aria-pressed="false">深色</button></div>
  <div class="section-heading"><h3>关于练习</h3></div><div class="settings-card"><button class="link-row" data-page="guide"><span><svg class="icon"><use href="#i-book"/></svg>练习指南</span><svg class="icon"><use href="#i-arrow"/></svg></button><button class="link-row" id="install-help"><span><svg class="icon"><use href="#i-plus"/></svg>添加到 iPhone 主屏幕</span><svg class="icon"><use href="#i-arrow"/></svg></button></div>
  <div class="privacy-note"><svg class="icon"><use href="#i-lock"/></svg><p>你的练习，只属于你。<br><span>记录保存在当前设备的浏览器中，不上传。<br>清除网站数据或更换设备后不会自动恢复。</span></p></div>
- <button class="text-button danger" id="reset-data">清空练习记录</button><p class="version">凯格尔运动小助手 · 精修版 5.2.1</p>
+ <button class="text-button danger" id="reset-data">清空练习记录</button><p class="version">凯格尔运动小助手 · 精修版 5.2.2</p>
 </section>
 <section id="guide" class="page guide-page" aria-labelledby="guide-title" hidden>
  <header class="sub-header"><button class="icon-button" id="guide-back" aria-label="返回"><svg class="icon"><use href="#i-back"/></svg></button><span>练习指南</span><span class="header-spacer"></span></header>
