@@ -1,5 +1,5 @@
 import {KEY,dateKey,normalize,completeGroup,streak,planDay,Session} from './core.mjs';
-import {AmbientMusic} from './music.mjs';
+import {AmbientMusic,configurePlayback} from './music.mjs';
 const $ = id => document.getElementById(id);
 const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const setText = (id,value) => {const el=$(id),s=String(value);if(el.textContent!==s)el.textContent=s;};
@@ -22,7 +22,7 @@ save();
 let currentPage='home',guideReturn='home',session=null,frameId=0,pointerId=null,keyHeld=null;
 let calendarDate=new Date();calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth(),1);
 let lastPhase='',lastDone=-1,toastTimer,audioContext,wakeLock=null,wakePending=false,lastFrameTime=0,lastCheckpoint='';
-let ambientMusic=null;
+let ambientMusic=null,musicPreview=false,musicPreviewTimer=null;
 let swRegistration=null,updatePending=false,hadController=!!navigator.serviceWorker?.controller,reloading=false;
 const knownPages=['home','records','settings','guide','exercise','complete'];
 const systemTheme=matchMedia('(prefers-color-scheme: dark)');
@@ -126,7 +126,7 @@ function route(page,push=true){
   document.querySelectorAll('.page').forEach(el=>{const active=el.id===page;el.hidden=!active;el.classList.toggle('active',active);});
   document.querySelectorAll('.tab').forEach(el=>{const active=el.dataset.page===page;el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
   document.body.classList.toggle('focus-mode',['exercise','guide','complete'].includes(page));
-  currentPage=page;window.scrollTo({top:0,behavior:'instant'});
+  currentPage=page;if(page!=='settings')stopMusicPreview();window.scrollTo({top:0,behavior:'instant'});
   if(push)history.pushState({page},'');
   if(page!=='exercise')releaseWakeLock();
   if(['home','settings','records'].includes(page))render();
@@ -147,16 +147,19 @@ $('guide-back').addEventListener('click',()=>route(guideReturn));
 document.querySelectorAll('[data-adjust]').forEach(button=>button.addEventListener('click',()=>{
   rollover();const [key,delta]=button.dataset.adjust.split(':');S[key]+=Number(delta);S=normalize(S);markTarget();save();render();
 }));
-function musicWanted(){return S.music&&session&&currentPage==='exercise'&&!document.hidden&&!['paused','complete'].includes(session.phase);}
+function musicWanted(){return !document.hidden&&(musicPreview&&currentPage==='settings'||S.music&&session&&currentPage==='exercise'&&!['paused','complete'].includes(session.phase));}
+function stopMusicPreview(){if(!musicPreview)return;musicPreview=false;clearTimeout(musicPreviewTimer);syncMusic();}
 function renderMusic(){
   $('music-toggle').setAttribute('aria-checked',String(S.music));
   $('exercise-music').setAttribute('aria-pressed',String(S.music));
   $('exercise-music').setAttribute('aria-label',S.music?'关闭背景音乐':'开启背景音乐');
   $('music-volume').value=S.musicVolume;
   setText('music-volume-value',`${S.musicVolume}%`);
-  const playing=!!ambientMusic?.voice;
+  setText('music-preview',musicPreview?'停止试听':'试听音乐 · 8 秒');
+  $('music-preview').setAttribute('aria-pressed',String(musicPreview));
+  const playing=!!ambientMusic?.voice&&audioContext?.state==='running';
   $('exercise-music').dataset.playing=String(playing);
-  setText('exercise-music-label',!S.music?'音乐已关':session?.phase==='paused'?'音乐已暂停':playing?'微光 · 播放中':'音乐待播放');
+  setText('exercise-music-label',!S.music?'音乐已关':session?.phase==='paused'?'音乐已暂停':S.musicVolume===0?'音乐音量为零':playing?'微光 · 播放中':'音乐待播放');
 }
 function syncMusic(){
   try{if(musicWanted()&&audioContext?.state==='running'){ambientMusic??=new AmbientMusic(audioContext);ambientMusic.start(S.musicVolume);}
@@ -164,12 +167,13 @@ function syncMusic(){
   renderMusic();
 }
 async function unlockAudio(){
-  if(!S.sound&&!S.music)return;
+  if(!S.sound&&!S.music&&!musicPreview)return;
+  configurePlayback(navigator);
   try{
     if(!audioContext){
       audioContext=new (window.AudioContext||window.webkitAudioContext)();
       audioContext.addEventListener('statechange',()=>{
-        if(audioContext.state!=='running'){ambientMusic?.stop({immediate:true});if(session)pauseSession();renderMusic();}
+        if(audioContext.state!=='running'){ambientMusic?.stop({immediate:true});stopMusicPreview();if(session)pauseSession();renderMusic();}
       });
     }
     if(audioContext.state!=='running')await audioContext.resume();
@@ -182,6 +186,12 @@ function toggleMusic(){
   if(S.music){unlockAudio();toast(session?'背景音乐已开启':'已开启「微光」，开始练习时播放');}
   else toast('背景音乐已关闭');
 }
+$('music-preview').addEventListener('click',()=>{
+  if(musicPreview){stopMusicPreview();return;}
+  if(S.musicVolume===0){toast('请先调高音乐音量，再试听');return;}
+  musicPreview=true;renderMusic();unlockAudio();
+  musicPreviewTimer=setTimeout(stopMusicPreview,8000);
+});
 $('music-toggle').addEventListener('click',toggleMusic);
 $('exercise-music').addEventListener('click',toggleMusic);
 $('music-volume').addEventListener('input',()=>{S.musicVolume=Number($('music-volume').value);ambientMusic?.setVolume(S.musicVolume);renderMusic();});
@@ -312,10 +322,10 @@ function finishSession(){
   abandonSession();history.replaceState({page:'complete'},'');route('complete',false);
 }
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){if(session)pauseSession();releaseWakeLock();}
+  if(document.hidden){stopMusicPreview();if(session)pauseSession();releaseWakeLock();}
   else {render();swRegistration?.update().catch(()=>{});safeUpdate();}
 });
-window.addEventListener('pagehide',()=>{if(session)pauseSession();releaseWakeLock();});
+window.addEventListener('pagehide',()=>{stopMusicPreview();if(session)pauseSession();releaseWakeLock();});
 window.addEventListener('storage',ev=>{
   if(ev.key!==KEY)return;
   try{const incoming=normalize(ev.newValue?JSON.parse(ev.newValue):{}),active=!!session;abandonSession();S=incoming;if(active){route('home');toast('练习状态已在另一页面更新，请从一个页面继续');}else render();}catch{}
