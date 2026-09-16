@@ -13,16 +13,26 @@ try {
   storageWarning('暂时无法读取原有记录，原始数据未覆盖。请检查浏览器存储设置；当前可体验练习。');
 }
 function save(){
-  if(storageBlocked)return;
-  try{localStorage.setItem(KEY,JSON.stringify(S));$('storage-warning').hidden=true;}
-  catch{storageWarning('记录暂未保存：浏览器存储不可用或空间不足。关闭页面后本次进度可能丢失。');}
+  if(storageBlocked)return false;
+  try{localStorage.setItem(KEY,JSON.stringify(S));$('storage-warning').hidden=true;return true;}
+  catch{storageWarning('记录暂未保存：浏览器存储不可用或空间不足。关闭页面后本次进度可能丢失。');return false;}
 }
 save();
 let currentPage='home',guideReturn='home',session=null,frameId=0,pointerId=null,keyHeld=null;
 let calendarDate=new Date();calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth(),1);
-let lastPhase='',lastDone=-1,toastTimer,audioContext,wakeLock=null,wakePending=false;
+let lastPhase='',lastDone=-1,toastTimer,audioContext,wakeLock=null,wakePending=false,lastFrameTime=0,lastCheckpoint='';
 let swRegistration=null,updatePending=false,hadController=!!navigator.serviceWorker?.controller,reloading=false;
 const knownPages=['home','records','settings','guide','exercise','complete'];
+const systemTheme=matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(){
+  const dark=S.theme==='dark'||S.theme==='system'&&systemTheme.matches;
+  document.documentElement.dataset.theme=dark?'dark':'light';
+  document.querySelector('meta[name="theme-color"]').content=dark?'#19251f':'#f6f5f0';
+  document.querySelectorAll('button[data-theme]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.theme===S.theme)));
+}
+systemTheme.addEventListener('change',applyTheme);
+document.querySelectorAll('button[data-theme]').forEach(el=>el.addEventListener('click',()=>{S.theme=el.dataset.theme;applyTheme();save();}));
+document.querySelectorAll('[data-mode]').forEach(el=>el.addEventListener('click',()=>{S.trainingMode=el.dataset.mode;save();render();}));
 
 function toast(message){setText('toast',message);$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2500);}
 function rollover(){if(S.day!==dateKey()){S=normalize(S);save();}}
@@ -40,7 +50,7 @@ function render(){
   setText('duration',`约 ${min?min+' 分':''}${sec?' '+sec+' 秒':''}`.trim());
   setText('hold-meta',`收紧 ${S.holdSec} 秒`);
   // Keep the icon in the start button stable when its label changes.
-  $('start').firstChild.textContent=percent>=100?'今日已达标 ':'开始训练 ';
+  $('start').firstChild.textContent=S.pendingSession?'继续上次练习 ':percent>=100?'今日已达标 ':S.trainingMode==='auto'?'开始自动引导 ':'开始训练 ';
   setText('streak',streak(S));setText('total-days',Object.values(S.checkins).filter(Boolean).length);setText('total-groups',S.totalGroups);
   setText('setting-target',S.kegelTarget);setText('setting-hold',S.holdSec);setText('setting-rest',S.restSec);
   setText('plan-day',`陪伴你的第 ${planDay(S)} 天 · 每组 10 次`);
@@ -49,13 +59,21 @@ function render(){
     const bounds=key==='kegelTarget'?[1,10]:key==='holdSec'?[2,10]:[S.holdSec,20];
     button.disabled=S[key]+n<bounds[0]||S[key]+n>bounds[1];
   });
-  renderSound();renderWeek();renderCalendar();renderRecent();
+  document.querySelectorAll('[data-mode]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.mode===S.trainingMode)));
+  setText('mode-help',S.trainingMode==='auto'?'准备 3 秒后自动切换，无需持续按住':'按住收紧，提示后松开放松');
+  const draft=S.pendingSession;$('resume-card').hidden=!draft;
+  if(draft){setText('resume-title',`上次完成了 ${draft.done}/10 次`);setText('resume-details',`${draft.mode==='auto'?'自动引导':'按住训练'} · 收紧 ${draft.holdSec} 秒 / 放松 ${draft.restSec} 秒${draft.done===10?' · 还需完成最后一次放松':''}`);}
+  applyTheme();renderSound();renderWeek();renderCalendar();renderRecent();
 }
 function renderSound(){
   $('sound-toggle').setAttribute('aria-checked',String(S.sound));
   $('exercise-sound').setAttribute('aria-pressed',String(S.sound));
   $('exercise-sound').setAttribute('aria-label',S.sound?'关闭提示音':'开启提示音');
   $('exercise-sound').querySelector('use').setAttribute('href',S.sound?'#i-sound':'#i-mute');
+  if(session)renderExerciseFootnote();
+}
+function renderExerciseFootnote(){
+  setText('exercise-footnote',session?.mode==='auto'?(S.sound?'高音收紧，低音放松。离开页面会自动暂停。':'跟随屏幕节奏。离开页面会自动暂停。'):'进度自动保存，退出后也可以继续。');
 }
 function dayStatus(key){return S.checkins[key]?'done':S.records[key]?.groups>0?'partial':'';}
 function renderWeek(){
@@ -74,6 +92,8 @@ function renderWeek(){
   }
   $('week-strip').replaceChildren(fragment);
   setText('week-note',practiced?`这周已经练习 ${practiced} 天，每一点坚持都算数。`:'不用着急，今天就是很好的开始。');
+  setText('weekly-days',practiced);$('weekly-progress').style.width=`${practiced/7*100}%`;
+  setText('weekly-summary-note',practiced?'不必追赶别人，\n保持自己的节奏。':'从今天开始，\n留下一点进步。');
 }
 function renderCalendar(){
   const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),lead=(new Date(y,m,1).getDay()+6)%7,days=new Date(y,m+1,0).getDate();
@@ -113,12 +133,10 @@ function route(page,push=true){
 }
 history.replaceState({page:'home'},'');
 document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>route(button.dataset.page)));
-window.addEventListener('popstate',async ev=>{
+window.addEventListener('popstate',ev=>{
   let target=ev.state?.page||'home';if(['exercise','complete'].includes(target))target='home';
   if(session&&currentPage==='exercise'){
     pauseSession();
-    const leave=await showDialog('结束这次练习？','退出后，这一组尚未完成的练习不会计入记录。已完成的历史组数会保留。','结束练习','返回练习');
-    if(!leave){history.pushState({page:'exercise'},'');return;}
     abandonSession();
   }
   route(target,false);
@@ -145,18 +163,38 @@ async function requestWakeLock(){
   try{const lock=await navigator.wakeLock.request('screen');if(currentPage!=='exercise'||session?.phase==='paused'||document.hidden){await lock.release();return;}wakeLock=lock;lock.addEventListener('release',()=>{if(wakeLock===lock)wakeLock=null;});}catch{}finally{wakePending=false;}
 }
 function releaseWakeLock(){if(wakeLock){const lock=wakeLock;wakeLock=null;lock.release().catch(()=>{});}}
-function startSession(){
-  rollover();session=new Session(S);lastPhase='';lastDone=-1;pointerId=null;keyHeld=null;
-  route('exercise');unlockAudio();requestWakeLock();drawSession();
+function checkpoint(){
+  if(!session||session.phase==='complete')return;
+  const draft=session.snapshot(),signature=JSON.stringify(draft);
+  if(signature===lastCheckpoint)return;
+  S.pendingSession=draft;
+  if(save())lastCheckpoint=signature;
 }
-$('start').addEventListener('click',async()=>{
+function startSession(restore=false){
+  rollover();session=restore?Session.restore(S.pendingSession):new Session(S);
+  if(!session){S.pendingSession=null;save();render();return;}
+  if(restore)session.resume(performance.now(),true);else session.start(performance.now());
+  lastPhase='';lastDone=-1;lastCheckpoint='';pointerId=null;keyHeld=null;lastFrameTime=performance.now();
+  route('exercise');unlockAudio();requestWakeLock();drawSession();scheduleFrame();
+}
+async function requestStart(){
   rollover();
+  if(S.pendingSession){startSession(true);return;}
   if(S.kegelGroups>=S.kegelTarget){if(!await showDialog('今天的目标已经完成','可以收下今天的进步，好好放松。如果你正按专业指导增加练习，也可以继续。','再练一组','今天先到这里'))return;}
   startSession();
+}
+$('start').addEventListener('click',requestStart);$('guide-start').addEventListener('click',requestStart);
+$('resume-session').addEventListener('click',()=>startSession(true));
+$('restart-session').addEventListener('click',async()=>{
+  if(!await showDialog('重新开始这一组？','将放弃这组未完成的进度，并按首页当前选择的模式和节奏重新开始。历史记录会保留。','重新开始','保留进度'))return;
+  S.pendingSession=null;save();requestStart();
 });
-$('guide-start').addEventListener('click',startSession);
-function scheduleFrame(){if(!frameId&&session&&['hold','rest'].includes(session.phase))frameId=requestAnimationFrame(frame);}
-function frame(now){frameId=0;if(!session)return;session.tick(now);drawSession();scheduleFrame();}
+function scheduleFrame(){if(!frameId&&session&&['prepare','hold','rest'].includes(session.phase)){if(!lastFrameTime)lastFrameTime=performance.now();frameId=requestAnimationFrame(frame);}}
+function frame(now){
+  frameId=0;if(!session)return;
+  if(session.mode==='auto'&&now-lastFrameTime>2000){pauseSession();toast('练习已暂停，准备好再继续');return;}
+  lastFrameTime=now;session.tick(now);drawSession();scheduleFrame();
+}
 function stopFrame(){cancelAnimationFrame(frameId);frameId=0;}
 function drawSession(){
   if(!session)return;
@@ -171,22 +209,29 @@ function drawSession(){
   setText('rep-number',Math.min(10,phase==='rest'?done:done+1));
   if(phase===lastPhase)return;
   const previous=lastPhase;lastPhase=phase;
+  checkpoint();
   $('training-stage').dataset.phase=phase;
-  const titles={ready:done?'继续下一次':'准备好了吗',hold:'轻轻收紧',release:'可以松开了',rest:'慢慢放松',paused:'歇一小会儿',complete:'这一组完成了'};
-  const subtitles={ready:'按住蜜桃，轻轻收紧盆底肌',hold:'保持这个力度，记得自然呼吸',release:'松开手指，让肌肉完全放松',rest:done===10?'完成最后一次放松，就结束这一组':'不着急，给身体充分放松的时间',paused:'已完成的次数会保留，继续时先放松',complete:'放松一下，收下今天的进步'};
+  $('training-stage').dataset.mode=session.mode;
+  setText('exercise-mode',session.mode==='auto'?'自动引导 · 无需持续按住':'按住训练 · 跟随自己的节奏');
+  const titles={prepare:'先放松，准备好',ready:done?'继续下一次':'准备好了吗',hold:'轻轻收紧',release:'可以松开了',rest:'慢慢放松',paused:'歇一小会儿',complete:'这一组完成了'};
+  const subtitles={prepare:session.afterPrepare==='rest'?'接下来先完成放松，再继续':'给自己 3 秒，调整到舒服的姿势',ready:'按住蜜桃，轻轻收紧盆底肌',hold:'保持这个力度，记得自然呼吸',release:'松开手指，让肌肉完全放松',rest:done===10?'完成最后一次放松，就结束这一组':'不着急，给身体充分放松的时间',paused:'已完成的次数会保留，继续时先放松',complete:'放松一下，收下今天的进步'};
   setText('phase-title',titles[phase]);setText('phase-subtitle',subtitles[phase]);
-  setText('timer-unit',phase==='rest'?'秒放松':phase==='release'?'请松手':phase==='paused'?'已暂停':'秒收紧');
+  setText('timer-unit',phase==='prepare'?'秒准备':phase==='rest'?'秒放松':phase==='release'?'请松手':phase==='paused'?'已暂停':'秒收紧');
   setText('breath-note',phase==='paused'?'继续后，未完成的这一次会重新开始':'自然呼吸，腹部与臀部保持放松');
-  $('hold-button').setAttribute('aria-pressed',String(['hold','release'].includes(phase)));
-  $('hold-button').setAttribute('aria-disabled',String(['paused','rest','complete'].includes(phase)));
+  $('hold-button').setAttribute('aria-pressed',String(session.mode==='hold'&&['hold','release'].includes(phase)));
+  $('hold-button').setAttribute('aria-disabled',String(session.mode==='auto'||['prepare','paused','rest','complete'].includes(phase)));
+  $('hold-button').setAttribute('aria-label',session.mode==='auto'?'自动引导进行中，请跟随文字与进度环':'按住开始收紧，提示后松开放松');
+  $('hold-button').tabIndex=session.mode==='auto'?-1:0;
+  renderExerciseFootnote();
   $('pause').querySelector('use').setAttribute('href',phase==='paused'?'#i-play':'#i-pause');
   $('pause').querySelector('span').textContent=phase==='paused'?'继续练习':'暂停练习';
-  document.querySelectorAll('[data-step]').forEach(el=>el.classList.toggle('current',el.dataset.step===(phase==='hold'?'release':phase==='ready'?'hold':'rest')));
-  if(phase==='release')tone(740);
-  if(phase==='ready'&&previous==='rest')tone(540);
+  const step=phase==='hold'?'release':phase==='ready'?'hold':phase==='rest'||phase==='release'?'rest':null;
+  document.querySelectorAll('[data-step]').forEach(el=>el.classList.toggle('current',el.dataset.step===step));
+  if(phase==='release'||phase==='rest'&&session.mode==='auto')tone(440);
+  if(phase==='hold'&&session.mode==='auto'||phase==='ready'&&previous==='rest')tone(740);
   if(phase==='complete')finishSession();
 }
-function press(){if(!session||session.phase!=='ready')return false;unlockAudio();session.press(performance.now());drawSession();scheduleFrame();return true;}
+function press(){if(!session||session.mode!=='hold'||session.phase!=='ready')return false;unlockAudio();session.press(performance.now());lastFrameTime=performance.now();drawSession();scheduleFrame();return true;}
 function release(){if(!session)return;const result=session.release(performance.now());if(result==='early')toast('先放松一下，准备好再试这一次');drawSession();scheduleFrame();}
 const holdButton=$('hold-button');
 holdButton.addEventListener('pointerdown',ev=>{
@@ -205,26 +250,27 @@ window.addEventListener('keyup',ev=>{if(keyHeld===ev.key){ev.preventDefault();ke
 holdButton.addEventListener('blur',()=>{if(keyHeld!==null){keyHeld=null;pauseSession();}});
 function pauseSession(){
   if(!session||session.phase==='complete')return;
-  pointerId=null;keyHeld=null;session.pause(performance.now());stopFrame();releaseWakeLock();drawSession();
+  pointerId=null;keyHeld=null;session.pause(performance.now());lastFrameTime=0;stopFrame();releaseWakeLock();drawSession();
 }
 $('pause').addEventListener('click',()=>{
   if(!session)return;
-  if(session.phase==='paused'){session.resume(performance.now());unlockAudio();requestWakeLock();drawSession();scheduleFrame();}
+  if(session.phase==='paused'){session.resume(performance.now(),true);lastFrameTime=performance.now();unlockAudio();requestWakeLock();drawSession();scheduleFrame();}
   else pauseSession();
 });
 function abandonSession(){stopFrame();session=null;pointerId=null;keyHeld=null;releaseWakeLock();}
-$('exit-training').addEventListener('click',async()=>{
+$('exit-training').addEventListener('click',()=>{
   if(!session)return;
-  if(session.done===0&&session.phase==='ready'){abandonSession();route('home');return;}
   pauseSession();
-  if(await showDialog('结束这次练习？','退出后，这一组尚未完成的练习不会计入记录。已完成的历史组数会保留。','结束练习','返回练习')){abandonSession();route('home');}
+  abandonSession();route('home');
 });
 function finishSession(){
   if(!session||session.credited)return;
   session.credited=true;const seconds=(session.holdMs+session.restMs)/1000*session.reps;
-  S=completeGroup(S,seconds);save();tone(880);
+  // Read the last committed state before counting; the session ID prevents replay.
+  if(!storageBlocked){try{const raw=localStorage.getItem(KEY);if(raw)S=normalize(JSON.parse(raw));}catch{}}
+  S=completeGroup(S,seconds,new Date(),session.id);save();tone(880);
   setText('complete-time',`${seconds}秒`);setText('complete-groups',`${S.kegelGroups}/${S.kegelTarget}`);
-  setText('complete-subtitle',S.kegelGroups>=S.kegelTarget?'今日目标已达成，现在可以好好放松。':'放松一下，让身体记住这份从容。');
+  setText('complete-subtitle',session.mode==='auto'?'这一组引导已完成，放松一下。':S.kegelGroups>=S.kegelTarget?'今日目标已达成，现在可以好好放松。':'放松一下，让身体记住这份从容。');
   abandonSession();history.replaceState({page:'complete'},'');route('complete',false);
 }
 document.addEventListener('visibilitychange',()=>{
@@ -234,7 +280,7 @@ document.addEventListener('visibilitychange',()=>{
 window.addEventListener('pagehide',()=>{if(session)pauseSession();releaseWakeLock();});
 window.addEventListener('storage',ev=>{
   if(ev.key!==KEY)return;
-  try{S=normalize(ev.newValue?JSON.parse(ev.newValue):{});if(session)pauseSession();render();if(session)toast('记录已在另一页面更新，当前练习已暂停');}catch{}
+  try{const incoming=normalize(ev.newValue?JSON.parse(ev.newValue):{}),active=!!session;abandonSession();S=incoming;if(active){route('home');toast('练习状态已在另一页面更新，请从一个页面继续');}else render();}catch{}
 });
 setInterval(()=>{if(S.day!==dateKey())render();},15000);
 let modalResolve=null,modalFocus=null;
@@ -252,8 +298,8 @@ $('dialog-confirm').addEventListener('click',()=>closeDialog(true));$('dialog-ca
 $('dialog').addEventListener('cancel',ev=>{ev.preventDefault();closeDialog(false);});
 $('install-help').addEventListener('click',()=>showDialog('把练习放在主屏幕','1. 用 iPhone 的 Safari 打开这个网址。\n2. 点分享按钮，选择「添加到主屏幕」。\n3. 添加后，从主屏幕图标打开。\n\n首次联网打开后，练习页面可离线使用。'));
 $('reset-data').addEventListener('click',async()=>{
-  if(!await showDialog('清空练习记录？','当前设备的打卡记录与累计组数将被清空，无法撤销。你的练习节奏设置会保留。','清空记录','保留记录'))return;
-  const next=normalize({kegelTarget:S.kegelTarget,holdSec:S.holdSec,restSec:S.restSec,sound:S.sound});
+  if(!await showDialog('清空练习记录？','当前设备的打卡记录、累计组数与未完成练习将被清空，无法撤销。你的练习节奏和外观设置会保留。','清空记录','保留记录'))return;
+  const next=normalize({kegelTarget:S.kegelTarget,holdSec:S.holdSec,restSec:S.restSec,sound:S.sound,trainingMode:S.trainingMode,theme:S.theme});
   try{localStorage.removeItem(KEY+'_pre_v5');localStorage.setItem(KEY,JSON.stringify(next));S=next;storageBlocked=false;render();$('storage-warning').hidden=true;toast('记录已清空，随时可以重新开始');}catch{toast('未能清空记录，请检查浏览器存储设置');}
 });
 $('prev-month').addEventListener('click',()=>{calendarDate.setMonth(calendarDate.getMonth()-1);renderCalendar();});

@@ -1,6 +1,6 @@
 {
   "name": "kegel-daily-care",
-  "version": "5.0.1",
+  "version": "5.1.0",
   "private": true,
   "type": "module",
   "scripts": { "build": "node scripts/build.mjs", "test": "node --test tests/*.test.mjs", "check": "node scripts/build.mjs --check && node --check app.js && node --check app.mjs && node --check core.mjs && node --check sw.js" }
