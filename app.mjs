@@ -1,4 +1,5 @@
 import {KEY,dateKey,normalize,completeGroup,streak,planDay,Session} from './core.mjs';
+import {AmbientMusic} from './music.mjs';
 const $ = id => document.getElementById(id);
 const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const setText = (id,value) => {const el=$(id),s=String(value);if(el.textContent!==s)el.textContent=s;};
@@ -21,6 +22,7 @@ save();
 let currentPage='home',guideReturn='home',session=null,frameId=0,pointerId=null,keyHeld=null;
 let calendarDate=new Date();calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth(),1);
 let lastPhase='',lastDone=-1,toastTimer,audioContext,wakeLock=null,wakePending=false,lastFrameTime=0,lastCheckpoint='';
+let ambientMusic=null;
 let swRegistration=null,updatePending=false,hadController=!!navigator.serviceWorker?.controller,reloading=false;
 const knownPages=['home','records','settings','guide','exercise','complete'];
 const systemTheme=matchMedia('(prefers-color-scheme: dark)');
@@ -63,7 +65,7 @@ function render(){
   setText('mode-help',S.trainingMode==='auto'?'准备 3 秒后自动切换，无需持续按住':'按住收紧，提示后松开放松');
   const draft=S.pendingSession;$('resume-card').hidden=!draft;
   if(draft){setText('resume-title',`上次完成了 ${draft.done}/10 次`);setText('resume-details',`${draft.mode==='auto'?'自动引导':'按住训练'} · 收紧 ${draft.holdSec} 秒 / 放松 ${draft.restSec} 秒${draft.done===10?' · 还需完成最后一次放松':''}`);}
-  applyTheme();renderSound();renderWeek();renderCalendar();renderRecent();
+  applyTheme();renderSound();renderMusic();renderWeek();renderCalendar();renderRecent();
 }
 function renderSound(){
   $('sound-toggle').setAttribute('aria-checked',String(S.sound));
@@ -145,17 +147,52 @@ $('guide-back').addEventListener('click',()=>route(guideReturn));
 document.querySelectorAll('[data-adjust]').forEach(button=>button.addEventListener('click',()=>{
   rollover();const [key,delta]=button.dataset.adjust.split(':');S[key]+=Number(delta);S=normalize(S);markTarget();save();render();
 }));
-async function unlockAudio(){
-  if(!S.sound)return;
-  try{audioContext??=new (window.AudioContext||window.webkitAudioContext)();if(audioContext.state==='suspended')await audioContext.resume();}catch{}
+function musicWanted(){return S.music&&session&&currentPage==='exercise'&&!document.hidden&&!['paused','complete'].includes(session.phase);}
+function renderMusic(){
+  $('music-toggle').setAttribute('aria-checked',String(S.music));
+  $('exercise-music').setAttribute('aria-pressed',String(S.music));
+  $('exercise-music').setAttribute('aria-label',S.music?'关闭背景音乐':'开启背景音乐');
+  $('music-volume').value=S.musicVolume;
+  setText('music-volume-value',`${S.musicVolume}%`);
+  const playing=!!ambientMusic?.voice;
+  $('exercise-music').dataset.playing=String(playing);
+  setText('exercise-music-label',!S.music?'音乐已关':session?.phase==='paused'?'音乐已暂停':playing?'微光 · 播放中':'音乐待播放');
 }
+function syncMusic(){
+  try{if(musicWanted()&&audioContext?.state==='running'){ambientMusic??=new AmbientMusic(audioContext);ambientMusic.start(S.musicVolume);}
+  else ambientMusic?.stop({immediate:document.hidden,reset:!session});}catch{toast('音乐暂时无法播放，试试重新开启');}
+  renderMusic();
+}
+async function unlockAudio(){
+  if(!S.sound&&!S.music)return;
+  try{
+    if(!audioContext){
+      audioContext=new (window.AudioContext||window.webkitAudioContext)();
+      audioContext.addEventListener('statechange',()=>{
+        if(audioContext.state!=='running'){ambientMusic?.stop({immediate:true});if(session)pauseSession();renderMusic();}
+      });
+    }
+    if(audioContext.state!=='running')await audioContext.resume();
+    // Recheck current intent after resume: a pause/exit may have happened meanwhile.
+    syncMusic();
+  }catch{toast('声音暂时无法开启，请再点一次声音开关');}
+}
+function toggleMusic(){
+  S.music=!S.music;save();syncMusic();
+  if(S.music){unlockAudio();toast(session?'背景音乐已开启':'已开启「微光」，开始练习时播放');}
+  else toast('背景音乐已关闭');
+}
+$('music-toggle').addEventListener('click',toggleMusic);
+$('exercise-music').addEventListener('click',toggleMusic);
+$('music-volume').addEventListener('input',()=>{S.musicVolume=Number($('music-volume').value);ambientMusic?.setVolume(S.musicVolume);renderMusic();});
+$('music-volume').addEventListener('change',save);
 function tone(frequency=660){
   if(!S.sound||!audioContext||audioContext.state!=='running')return;
   try{const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),t=audioContext.currentTime;
     oscillator.type='sine';oscillator.frequency.setValueAtTime(frequency,t);gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(.045,t+.015);gain.gain.exponentialRampToValueAtTime(.001,t+.18);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(t);oscillator.stop(t+.2);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
   }catch{}
 }
-function toggleSound(){S.sound=!S.sound;save();renderSound();unlockAudio();toast(S.sound?'轻提示音已开启':'已静音');}
+function toggleSound(){S.sound=!S.sound;save();renderSound();unlockAudio();toast(S.sound?'轻提示音已开启':'提示音已关闭');}
 $('sound-toggle').addEventListener('click',toggleSound);$('exercise-sound').addEventListener('click',toggleSound);
 async function requestWakeLock(){
   if(wakeLock||wakePending||!navigator.wakeLock||document.hidden||currentPage!=='exercise'||session?.phase==='paused')return;
@@ -209,6 +246,7 @@ function drawSession(){
   setText('rep-number',Math.min(10,phase==='rest'?done:done+1));
   if(phase===lastPhase)return;
   const previous=lastPhase;lastPhase=phase;
+  syncMusic();
   checkpoint();
   $('training-stage').dataset.phase=phase;
   $('training-stage').dataset.mode=session.mode;
@@ -257,7 +295,7 @@ $('pause').addEventListener('click',()=>{
   if(session.phase==='paused'){session.resume(performance.now(),true);lastFrameTime=performance.now();unlockAudio();requestWakeLock();drawSession();scheduleFrame();}
   else pauseSession();
 });
-function abandonSession(){stopFrame();session=null;pointerId=null;keyHeld=null;releaseWakeLock();}
+function abandonSession(){stopFrame();session=null;pointerId=null;keyHeld=null;releaseWakeLock();syncMusic();}
 $('exit-training').addEventListener('click',()=>{
   if(!session)return;
   pauseSession();
@@ -299,7 +337,7 @@ $('dialog').addEventListener('cancel',ev=>{ev.preventDefault();closeDialog(false
 $('install-help').addEventListener('click',()=>showDialog('把练习放在主屏幕','1. 用 iPhone 的 Safari 打开这个网址。\n2. 点分享按钮，选择「添加到主屏幕」。\n3. 添加后，从主屏幕图标打开。\n\n首次联网打开后，练习页面可离线使用。'));
 $('reset-data').addEventListener('click',async()=>{
   if(!await showDialog('清空练习记录？','当前设备的打卡记录、累计组数与未完成练习将被清空，无法撤销。你的练习节奏和外观设置会保留。','清空记录','保留记录'))return;
-  const next=normalize({kegelTarget:S.kegelTarget,holdSec:S.holdSec,restSec:S.restSec,sound:S.sound,trainingMode:S.trainingMode,theme:S.theme});
+  const next=normalize({kegelTarget:S.kegelTarget,holdSec:S.holdSec,restSec:S.restSec,sound:S.sound,music:S.music,musicVolume:S.musicVolume,trainingMode:S.trainingMode,theme:S.theme});
   try{localStorage.removeItem(KEY+'_pre_v5');localStorage.setItem(KEY,JSON.stringify(next));S=next;storageBlocked=false;render();$('storage-warning').hidden=true;toast('记录已清空，随时可以重新开始');}catch{toast('未能清空记录，请检查浏览器存储设置');}
 });
 $('prev-month').addEventListener('click',()=>{calendarDate.setMonth(calendarDate.getMonth()-1);renderCalendar();});
