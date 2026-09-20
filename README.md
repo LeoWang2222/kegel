@@ -14,6 +14,12 @@
 
 ## 这一版的变化
 
+### 5.2.4 · 更简洁的主屏幕图标
+
+- 重绘图标：深松绿底色、蜜桃轮廓与单片浅绿叶子，移除表情和外圈装饰。
+- 提供 180px iPhone 图标及 192px、512px PWA 图标；图像为不透明正方形，由系统裁切圆角，主体保留在圆形裁切安全区内。
+- 图标地址与离线缓存版本同步更新；已安装的主屏幕图标何时刷新由系统决定。
+
 ### 5.2.3 · 基础体验打磨
 
 - 首页合并重复的继续入口，未完成进度、原有模式和节奏紧挨主按钮；重新开始仍需确认，并明确显示将使用的设置。
@@ -93,7 +99,7 @@ npm run check
 | scripts/build.mjs | 无依赖构建脚本，修改模块源文件后运行 npm run build |
 | core.mjs | 可测试的训练状态与数据逻辑 |
 | peach.svg / favicon.svg | 吉祥物和图标源文件 |
-| apple-touch-icon.png / icon-512.png | 主屏幕图标 |
+| apple-touch-icon.png / icon-192.png / icon-512.png | 主屏幕图标 |
 | sw.js / manifest.webmanifest | 离线缓存、安装配置 |
 | tests/core.test.mjs | 核心逻辑测试 |
 
