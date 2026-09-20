@@ -4,24 +4,23 @@ button{transition:transform 210ms cubic-bezier(.2,.78,.25,1),background-color 13
 button:active:not(:disabled):not(.hold-button){transform:scale(.975);transition-duration:65ms}
 .primary{background:var(--action);color:var(--action-ink)}.primary:active{background:var(--action-pressed)}
 .text-button{font-size:12px;min-height:44px}.tag{font-size:11px}.label,.hero-progress .label{font-size:12px}
-.greeting{padding-top:24px}.greeting .muted{font-size:13px}.eyebrow{color:var(--detail)}
+.greeting{padding:18px 1px}.greeting h2{font-size:27px;margin:6px 0}.greeting .muted{font-size:13px}.eyebrow{color:var(--detail)}
 .session-meta{font-size:11px;flex-wrap:wrap;row-gap:5px}.scene-caption{font-size:11px;color:var(--detail)}
-.hero-scene{height:147px}.home-peach{width:166px;height:166px;top:-12px}.scene-caption{bottom:-2px}
+.hero-scene{height:125px}.home-peach{width:148px;height:148px;top:-12px}.scene-caption{bottom:-2px}
+#home.has-resume .hero-scene{height:76px}#home.has-resume .home-peach{width:110px;height:110px;top:-15px}#home.has-resume .scene-caption,#home.has-resume .orbit,#home.has-resume .scene-spark{display:none}
 .hero-progress{padding-top:17px}.hero-top .tag{font-size:11px}.hero-divider{margin-bottom:10px}.session-meta{margin-bottom:12px}
 .segmented{display:flex;align-items:center;gap:4px;padding:4px;border:1px solid var(--line);border-radius:16px;background:var(--surface-soft)}
 .segmented button{flex:1;min-height:44px;padding:8px 9px;border-radius:12px;font-size:13px;color:var(--muted);white-space:nowrap}
 .segmented button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 2px 6px #26382a09}
 .mode-picker{background:#dce5d35c;border-color:#cdd8bd80;padding:3px;border-radius:15px}.mode-picker button{min-height:42px;font-size:12px}
 .mode-help{font-size:11px;color:var(--detail);text-align:center;min-height:21px;margin:6px 0 10px;line-height:1.7}
-.theme-picker{margin-bottom:4px}.resume-card{border:1px solid #cbd8c0;background:#eef2e6;border-radius:22px;padding:17px 18px;margin:0 0 16px}
-.resume-card .eyebrow{font-size:10px;letter-spacing:1px}.resume-card h3{font-size:17px;margin:6px 0}.resume-card p{font-size:12px;color:var(--muted);line-height:1.8}
-.resume-actions{display:flex;align-items:center;gap:19px;margin-top:13px}.resume-actions .button{width:auto;flex:1;height:44px;font-size:13px;border-radius:13px}.resume-actions .icon{width:15px;height:15px}
-.resume-actions .text-button{flex:none;color:var(--muted)}
+.theme-picker{margin-bottom:4px}.resume-card{padding:2px 0 14px;text-align:left}
+.resume-card h3{font-size:16px;margin:0 0 5px}.resume-card p{font-size:12px;color:var(--secondary-ink);line-height:1.8}.resume-card #resume-next{margin-top:3px;color:var(--muted)}
 .week-day{font-size:11px;color:var(--detail)}.week-day .day-disc{font-size:13px;color:var(--detail)}.week-card>p{font-size:12px;line-height:1.8;color:var(--muted)}
 .guide-link strong{font-size:14px}.guide-link small{font-size:12px;color:var(--muted)}.home-footnote{font-size:11px;color:var(--detail)}
 .tab{font-size:11px;color:var(--detail)}.phase-copy p{font-size:13px;color:var(--muted)}.rep-caption{font-size:13px;color:var(--muted)}
 .exercise-top>.eyebrow{font-size:11px;letter-spacing:1px}.phase-track{font-size:12px;color:var(--detail);gap:8px}.phase-track i{width:15px}
-.breath-note{font-size:12px;color:var(--muted)}.timer-pill>small{font-size:11px;color:var(--detail)}.timer-pill{min-width:91px;height:38px}
+.breath-note{font-size:12px;color:var(--muted)}.timer-pill>small{font-size:11px;color:var(--detail)}.timer-pill{min-width:99px;height:42px}.timer-pill>span{font-size:26px;line-height:36px}
 .training-controls>p{font-size:11px;color:var(--detail);line-height:1.8}.training-controls .secondary{height:50px;font-size:14px;min-width:174px}
 .hold-button img{transition:transform 310ms cubic-bezier(.2,.82,.28,1.08),opacity 180ms;will-change:transform}
 .training-stage[data-phase="hold"] .hold-button img,.training-stage[data-phase="release"] .hold-button img{transform:translateY(1px) scale(.976,.945);transition:transform 85ms ease-out}
@@ -55,7 +54,6 @@ html[data-theme="dark"] .big-number>span,html[data-theme="dark"] .hero-progress 
 html[data-theme="dark"] .ring-track{stroke:#47583e}html[data-theme="dark"] .ring-fill{stroke:#b6ca95}html[data-theme="dark"] .mini-ring>span{color:#c2d3a8}
 html[data-theme="dark"] .hero-divider{background:#4c5c3f}html[data-theme="dark"] .orbit{border-color:#90a87c21}html[data-theme="dark"] .orbit-b{border-color:#c7d4b620}
 html[data-theme="dark"] .mode-picker{background:#1f2d2380;border-color:#4a5b40}html[data-theme="dark"] .mode-picker button[aria-pressed="true"]{background:#3a4e36;color:#e7efdf}
-html[data-theme="dark"] .resume-card{background:#283a2c;border-color:#4c6142}
 html[data-theme="dark"] .secondary,html[data-theme="dark"] .training-controls .secondary{background:#344730;color:#d6e3c9;box-shadow:inset 0 0 0 1px #8a9c6930}
 html[data-theme="dark"] .secondary:active{background:#3e5537}
 html[data-theme="dark"] .week-card,html[data-theme="dark"] .recent-records{background:#202d2466}

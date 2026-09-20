@@ -260,7 +260,14 @@ function render(){
   document.querySelectorAll('[data-mode]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.mode===S.trainingMode)));
   setText('mode-help',S.trainingMode==='auto'?'准备 3 秒后自动切换，无需持续按住':'按住收紧，提示后松开放松');
   const draft=S.pendingSession;$('resume-card').hidden=!draft;$('hero-restart').hidden=!draft;
-  if(draft){setText('resume-title',`上次完成了 ${draft.done}/10 次`);setText('resume-details',`${draft.mode==='auto'?'自动引导':'按住训练'} · 收紧 ${draft.holdSec} 秒 / 放松 ${draft.restSec} 秒${draft.done===10?' · 还需完成最后一次放松':''}`);}
+  $('home').classList.toggle('has-resume',!!draft);
+  for(const id of ['session-meta','mode-picker','mode-help'])$(id).hidden=!!draft;
+  $('start').setAttribute('aria-describedby',draft?'resume-title resume-details resume-next':'mode-help');
+  if(draft){
+    setText('resume-title',draft.done===10?'还差最后一次放松':`本组已完成 ${draft.done}/10 次`);
+    setText('resume-details',`${draft.mode==='auto'?'自动引导':'按住训练'} · 收紧 ${draft.holdSec} 秒 / 放松 ${draft.restSec} 秒`);
+    setText('resume-next',draft.nextPhase==='rest'?'准备 3 秒后，先完成放松。':'准备 3 秒后，从这一次重新开始。');
+  }
   applyTheme();renderSound();renderMusic();renderWeek();renderCalendar();renderRecent();
 }
 function renderSound(){
@@ -427,12 +434,11 @@ async function requestStart(){
   startSession();
 }
 $('start').addEventListener('click',requestStart);$('guide-start').addEventListener('click',requestStart);
-$('resume-session').addEventListener('click',()=>startSession(true));
 async function restartSession(){
-  if(!await showDialog('重新开始这一组？','将放弃这组未完成的进度，并按首页当前选择的模式和节奏重新开始。历史记录会保留。','重新开始','保留进度'))return;
+  const rhythm=`${S.trainingMode==='auto'?'自动引导':'按住训练'} · 收紧 ${S.holdSec} 秒 / 放松 ${S.restSec} 秒`;
+  if(!await showDialog('重新开始这一组？',`将放弃本组进度，按当前设置从第 1 次开始：\n${rhythm}\n\n历史记录会保留。`,'重新开始','保留进度'))return;
   S.pendingSession=null;save();requestStart();
 }
-$('restart-session').addEventListener('click',restartSession);
 $('hero-restart').addEventListener('click',restartSession);
 function scheduleFrame(){if(!frameId&&session&&['prepare','hold','rest'].includes(session.phase)){if(!lastFrameTime)lastFrameTime=performance.now();frameId=requestAnimationFrame(frame);}}
 function frame(now){
@@ -451,7 +457,8 @@ function drawSession(){
     $('rep-dots').setAttribute('aria-label',`已完成 ${done} 次`);
     lastDone=done;
   }
-  setText('rep-number',Math.min(10,phase==='rest'?done:done+1));
+  const finishingRest=phase==='rest'||phase==='paused'&&session.pausedFrom==='rest'||phase==='prepare'&&session.afterPrepare==='rest';
+  setText('rep-number',Math.min(10,finishingRest?done:done+1));
   if(phase===lastPhase)return;
   const previous=lastPhase;lastPhase=phase;
   syncMusic();
@@ -461,9 +468,10 @@ function drawSession(){
   setText('exercise-mode',session.mode==='auto'?'自动引导 · 无需持续按住':'按住训练 · 跟随自己的节奏');
   const titles={prepare:'先放松，准备好',ready:done?'继续下一次':'准备好了吗',hold:'轻轻收紧',release:'可以松开了',rest:'慢慢放松',paused:'歇一小会儿',complete:'这一组完成了'};
   const subtitles={prepare:session.afterPrepare==='rest'?'接下来先完成放松，再继续':'给自己 3 秒，调整到舒服的姿势',ready:'按住蜜桃，轻轻收紧盆底肌',hold:'保持这个力度，记得自然呼吸',release:'松开手指，让肌肉完全放松',rest:done===10?'完成最后一次放松，就结束这一组':'不着急，给身体充分放松的时间',paused:'已完成的次数会保留，继续时先放松',complete:'放松一下，收下今天的进步'};
+  if(phase==='paused')subtitles.paused=session.pausedFrom==='rest'?'已完成的次数会保留，继续后先完成放松':'已完成的次数会保留，继续后重做这一次';
   setText('phase-title',titles[phase]);setText('phase-subtitle',subtitles[phase]);
   setText('timer-unit',phase==='prepare'?'秒准备':phase==='rest'?'秒放松':phase==='release'?'请松手':phase==='paused'?'已暂停':'秒收紧');
-  setText('breath-note',phase==='paused'?'继续后，未完成的这一次会重新开始':'自然呼吸，腹部与臀部保持放松');
+  setText('breath-note',phase==='paused'?'继续前会有 3 秒准备时间':'自然呼吸，腹部与臀部保持放松');
   $('hold-button').setAttribute('aria-pressed',String(session.mode==='hold'&&['hold','release'].includes(phase)));
   $('hold-button').setAttribute('aria-disabled',String(session.mode==='auto'||['prepare','paused','rest','complete'].includes(phase)));
   $('hold-button').setAttribute('aria-label',session.mode==='auto'?'自动引导进行中，请跟随文字与进度环':'按住开始收紧，提示后松开放松');
@@ -471,8 +479,11 @@ function drawSession(){
   renderExerciseFootnote();
   $('pause').querySelector('use').setAttribute('href',phase==='paused'?'#i-play':'#i-pause');
   $('pause').querySelector('span').textContent=phase==='paused'?'继续练习':'暂停练习';
-  const step=phase==='hold'?'release':phase==='ready'?'hold':phase==='rest'||phase==='release'?'rest':null;
-  document.querySelectorAll('[data-step]').forEach(el=>el.classList.toggle('current',el.dataset.step===step));
+  const step=phase==='hold'||phase==='ready'?'hold':phase==='rest'||phase==='release'?'rest':null;
+  document.querySelectorAll('[data-step]').forEach(el=>{
+    const active=el.dataset.step===step;el.classList.toggle('current',active);
+    if(active)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');
+  });
   if(phase==='release'||phase==='rest'&&session.mode==='auto')tone(440);
   if(phase==='hold'&&session.mode==='auto'||phase==='ready'&&previous==='rest')tone(740);
   if(phase==='complete')finishSession();

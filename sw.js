@@ -1,4 +1,4 @@
-const CACHE='kegel-v5.2.2';
+const CACHE='kegel-v5.2.3-polish';
 const ASSETS=['./','./index.html','./styles.css','./refinements.css','./app.js','./peach.svg','./favicon.svg','./manifest.webmanifest','./apple-touch-icon.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(
   ASSETS.map(asset=>new Request(new URL(asset,self.registration.scope),{cache:'reload'}))

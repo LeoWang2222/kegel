@@ -2,3 +2,6 @@ node_modules/
 .DS_Store
 qa/
 *.log
+PROJECT_HANDOFF.md
+.env
+.env.*
